@@ -1,6 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import Navbar from "../components/ui/Navbar";
+import Footer from "../components/Footer";
 
 const PAGE_SIZE = 6;
 
@@ -40,9 +42,11 @@ export default async function MockTestsPage({
   const totalPages = count ? Math.ceil(count / PAGE_SIZE) : 1;
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-6">CUET Mock Tests</h1>
-
+    <main>
+      <div>
+        <Navbar />
+      </div>
+      <div className="p-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {tests?.map((test) => (
           <div
@@ -84,5 +88,10 @@ export default async function MockTestsPage({
         ))}
       </div>
     </div>
+
+    <div>
+      <Footer />
+    </div>
+    </main>
   );
 }

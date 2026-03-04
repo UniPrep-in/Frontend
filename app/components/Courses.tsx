@@ -37,12 +37,6 @@ export default async function Courses() {
               href={`/mock-tests/${mock.id}`}
               className="group relative bg-white rounded-2xl p-8 border border-neutral-200 shadow-xl hover:shadow-xl transition duration-300"
             >
-              <div className="flex justify-between items-start mb-6">
-                <span className="text-sm px-3 py-1 bg-emerald-500 rounded-full text-white font-bold leading-relaxed">
-                  {mock.year}
-                </span>
-              </div>
-
               <h3 className="text-xl font-semibold text-gray-900 mb-3 group-hover:text-black transition">
                 {mock.title}
               </h3>
@@ -52,7 +46,7 @@ export default async function Courses() {
                   <HiOutlineClock className="text-lg" /> {mock.duration_minutes} mins
                 </span>
                 <span className="text-black">
-                  <span className="bg-black text-white px-4 py-2 rounded-full">{mock.total_marks}</span> Marks
+                  {mock.total_marks} Marks
                 </span>
               </div>
 
