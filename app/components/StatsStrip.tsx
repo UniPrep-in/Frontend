@@ -1,7 +1,7 @@
 "use client";
 
 import { FaUsers, FaUserTie, FaQuestionCircle, FaFileAlt } from "react-icons/fa";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 
 const stats = [
     {
@@ -26,7 +26,7 @@ const stats = [
     },
 ];
 
-const containerVariants = {
+const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
         opacity: 1,
@@ -37,7 +37,7 @@ const containerVariants = {
     },
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
     hidden: { 
         opacity: 0, 
         y: 40,
@@ -54,13 +54,13 @@ const itemVariants = {
     },
 };
 
-const iconVariants = {
+const iconVariants: Variants = {
     hidden: { scale: 0, rotate: -180 },
     visible: {
         scale: 1,
         rotate: 0,
         transition: {
-            type: "spring",
+            type: "spring" as const,
             stiffness: 200,
             damping: 15,
             delay: 0.1,
@@ -68,7 +68,7 @@ const iconVariants = {
     },
 };
 
-const numberVariants = {
+const numberVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
         opacity: 1,
