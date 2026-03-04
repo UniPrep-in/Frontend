@@ -65,11 +65,11 @@ const reviews = [
         
         {/* Header */}
         <div className="flex flex-col items-center justify-center mb-16">
-          <h2 className="text-4xl text-blue-900 max-w-xl text-center mb-4">
+          <h2 className="text-6xl text-black max-w-xl text-center mb-4">
             Testimonials
           </h2>
           <p className="text-black text-lg text-center max-w-xl mx-auto">
-            What CUET Aspirants Say about Uniprep
+            What CUET Aspirants think about Uniprep
           </p>
         </div>
 

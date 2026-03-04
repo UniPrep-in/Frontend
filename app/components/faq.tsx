@@ -7,24 +7,28 @@ export default function Faq() {
 
   const faqs = [
     {
-      question: "How do I get started with the courses?",
-      answer: "Simply browse our course library, select the one that interests you, and click enroll. You'll get immediate access to all course materials and can start learning right away.",
+      question: "Is the content updated as per the latest CUET syllabus?",
+      answer: "Yes, our study material and mock tests are regularly updated to reflect the latest CUET guidelines.",
     },
     {
-      question: "Are the certificates recognized by employers?",
-      answer: "Yes, our industry certificates are recognized by leading companies worldwide. They demonstrate your commitment to professional development and mastery of specific skills.",
+      question: "Do you offer short notes and revision material?",
+      answer: "Yes, concise exam-ready notes are provided for quick revision before the exam.",
     },
     {
-      question: "Can I learn at my own pace?",
-      answer: "Absolutely! All our courses are self-paced with 24/7 access. You can pause, rewind, and revisit content whenever you need to fit your schedule.",
+      question: "Do you cover Class 12 NCERT syllabus as well?",
+      answer: "Yes, since CUET commerce domain subjects are based on NCERT, our modules integrate Class 12 concepts with exam-focused practice.",
     },
     {
-      question: "What kind of support do you offer?",
-      answer: "We provide dedicated support through email, live chat, and community forums. Our team typically responds within 24 hours to help with any questions or technical issues.",
+      question: "Can students access the platform on mobile?",
+      answer: "Yes, our platform is mobile-friendly and accessible on smartphones, tablets, and laptops.",
     },
     {
-      question: "Is there a refund policy?",
-      answer: "Yes, we offer a 30-day money-back guarantee. If you're not satisfied with your course, contact us within 30 days of purchase for a full refund.",
+      question: "Do you provide doubt-clearing sessions?",
+      answer: "Yes, live doubt-clearing sessions are scheduled weekly, and students can also post queries for quick responses.",
+    },
+    {
+      question: "Is career counseling included?",
+      answer: "We guide students on course selection, university preferences, and career paths after CUET.",
     },
   ];
 
