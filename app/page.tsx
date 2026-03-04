@@ -3,7 +3,6 @@ import Hero from "./components/Hero";
 import StatsStrip from "./components/StatsStrip";
 import Grid from "./components/ui/grid";
 import ImageCarousel from "./components/ui/infiniteCarousal";
-import HowItWorks from "./components/HowItWorks";
 import CuetCoverage from "./components/CuetCoverage";
 import Courses from "./components/Courses";
 import Usp from "./components/Usp";
