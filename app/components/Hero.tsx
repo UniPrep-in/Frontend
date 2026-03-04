@@ -94,11 +94,6 @@ export default function Hero() {
               Explore CUET Plans
             </Link> */}
           </div>
-
-          {/* Trust Line */}
-          <p className="text-sm text-gray-500 font-medium">
-            Built specifically for CUET 2026 aspirants.
-          </p>
         </div>
       </div>
     </main>
