@@ -48,6 +48,23 @@ export default function AuthForm() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error(error.message);
+      setLoading(false);
+    }
+  };
+
   const inputVariants = {
     focused: { scale: 1.02, transition: { duration: 0.2 } },
     unfocused: { scale: 1, transition: { duration: 0.2 } },
@@ -244,7 +261,9 @@ export default function AuthForm() {
             {/* Social Login */}
               <button
                 type="button"
-                className="flex shadow w-full items-center justify-center gap-2 py-2.5 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors duration-200 group"
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+                className="flex shadow w-full items-center justify-center gap-2 py-2.5 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FcGoogle className="text-xl" />
                 <span className="text-sm font-medium text-slate-700">Google</span>
