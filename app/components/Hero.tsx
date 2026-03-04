@@ -130,7 +130,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2, ease: "easeOut" }}
-          className="max-w-2xl text-lg md:text-xl text-center text-gray-600 leading-relaxed font-semibold"
+          className="max-w-2xl text-lg md:text-xl text-center text-black leading-relaxed"
         >
           Mocks. AI Analysis. Ranker Mentorship. Preference Filling.
         </motion.p>

@@ -30,10 +30,6 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="rounded-t-4xl border-t border-t-neutral-50">
-        <HowItWorks />
-      </div>
-
       <CuetCoverage />
 
       <Courses />
