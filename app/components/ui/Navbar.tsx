@@ -6,9 +6,11 @@ import Link from "next/link";
 import { Menu, X, ChevronDown, LogOut, User as UserIcon } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import type { User } from "@supabase/supabase-js";
 export default function Navbar() {
   const supabase = createClient();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -20,14 +22,41 @@ export default function Navbar() {
       } = await supabase.auth.getUser();
 
       setUser(user);
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("avatar_url")
+          .eq("id", user.id)
+          .single();
+
+        if (profile?.avatar_url) {
+          setAvatarUrl(profile.avatar_url);
+        }
+      }
     };
 
     getUser();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("avatar_url")
+          .eq("id", currentUser.id)
+          .single();
+
+        if (profile?.avatar_url) {
+          setAvatarUrl(profile.avatar_url);
+        }
+      } else {
+        setAvatarUrl(null);
+      }
     });
 
     // Scroll detection for glassmorphism effect
@@ -112,8 +141,18 @@ export default function Navbar() {
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                   className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors duration-200"
                 >
-                  <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                    {getInitials()}
+                  <div className="h-7 w-7 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                    {avatarUrl ? (
+                      <Image
+                        src={avatarUrl}
+                        alt="avatar"
+                        width={28}
+                        height={28}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      getInitials()
+                    )}
                   </div>
                   <span className="hidden sm:block text-sm font-medium text-slate-700 max-w-[100px] truncate">
                     {getDisplayName()}
