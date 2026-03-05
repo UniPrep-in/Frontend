@@ -1,8 +1,6 @@
 "use client";
-
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useProfileStore } from "@/store/profileStore";
 import { createClient } from "@/lib/supabase/client";
 import Navbar from "../components/ui/Navbar";
 
@@ -10,17 +8,19 @@ export default function ProfilePage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const {
-    fullName,
-    phone,
-    address,
-    imageUrl,
-    loading,
-    fetchProfile,
-  } = useProfileStore();
+  const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
 
   useEffect(() => {
-    async function checkUser() {
+    async function fetchData() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -30,55 +30,247 @@ export default function ProfilePage() {
         return;
       }
 
-      fetchProfile();
+      setEmail(user.email || "");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (profile) {
+        setFullName(user.user_metadata?.display_name || "");
+        setPhone(profile.phone);
+        setAddress(profile.address);
+        const avatar = profile.avatar_url || user.user_metadata?.avatar_url || null;
+        setAvatarUrl(avatar);
+      } else {
+        setFullName(user.user_metadata?.display_name || "");
+        const avatar = user.user_metadata?.avatar_url || null;
+        setAvatarUrl(avatar);
+      }
+
+      setLoading(false);
     }
 
-    checkUser();
+    fetchData();
   }, []);
+
+  async function handleSave() {
+    setLoading(true);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    // Update email and display name in auth
+    await supabase.auth.updateUser({
+      email,
+      data: {
+        display_name: fullName,
+      },
+    });
+
+    let uploadedUrl = avatarUrl;
+
+    // Handle avatar removal
+    if (removeAvatar) {
+      const filePathPng = `${user.id}/avatar.png`;
+      const filePathJpg = `${user.id}/avatar.jpg`;
+
+      await supabase.storage.from("avatars").remove([filePathPng, filePathJpg]);
+
+      uploadedUrl = null;
+    }
+
+    // Upload new avatar if selected
+    if (file) {
+      const allowedTypes = ["image/png", "image/jpeg", "image/jpg"];
+
+      if (!allowedTypes.includes(file.type)) {
+        alert("Only PNG, JPG, and JPEG images are allowed.");
+        setLoading(false);
+        return;
+      }
+
+      const extension = file.type === "image/png" ? "png" : "jpg";
+      const filePath = `${user.id}/avatar.${extension}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, {
+          upsert: true,
+          contentType: file.type,
+        });
+
+      if (uploadError) {
+        console.error("Upload failed:", uploadError);
+        setLoading(false);
+        return;
+      }
+
+      const { data: signedData } = await supabase.storage
+        .from("avatars")
+        .createSignedUrl(filePath, 60 * 60 * 24 * 365);
+
+      uploadedUrl = signedData?.signedUrl || null;
+    }
+
+    // Update or create profile row (handles case where row does not exist)
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .upsert({
+        id: user.id,
+        phone,
+        address,
+        avatar_url: uploadedUrl,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (profileError) {
+      console.error("Profile update failed:", profileError);
+      alert("Profile update failed. Check console for details.");
+      setLoading(false);
+      return;
+    }
+
+    setAvatarUrl(uploadedUrl || avatarUrl || null);
+    setIsEditing(false);
+    setLoading(false);
+  }
 
   if (loading) {
     return (
       <div className="min-h-screen flex justify-center items-center">
-        <p className="text-lg font-semibold text-gray-700">
-          Loading profile...
-        </p>
+        Loading profile...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex justify-center items-center bg-gradient-to-br from-slate-200 to-slate-400">
-     <Navbar/>
-      <div className="bg-white p-8 rounded-2xl shadow-2xl w-96 text-center space-y-4">
-        <h2 className="text-2xl font-bold text-gray-800">
-          My Profile
-        </h2>
+    <div className="min-h-screen bg-gradient-to-br from-slate-200 to-slate-400 flex justify-center items-center">
+      <Navbar />
+      <div className="bg-white p-8 rounded-2xl shadow-2xl w-96 space-y-4 text-center">
+        <h2 className="text-2xl font-bold">My Profile</h2>
 
-        {imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={imageUrl}
-            alt="Profile"
-            className="w-28 h-28 rounded-full mx-auto object-cover border-4 border-blue-500"
-          />
-        ) : (
-          <div className="w-28 h-28 rounded-full mx-auto bg-gray-300 flex items-center justify-center">
-            <span className="text-gray-600">No Image</span>
-          </div>
-        )}
+        {/* Avatar */}
+        <div className="relative w-28 h-28 mx-auto">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt="Profile"
+              className="w-28 h-28 rounded-full object-cover border-4 border-blue-500"
+            />
+          ) : (
+            <div className="w-28 h-28 rounded-full bg-gray-300 flex items-center justify-center">
+              No Image
+            </div>
+          )}
 
-        <div className="text-left space-y-2 text-gray-700">
-          <p><strong>Name:</strong> {fullName}</p>
-          <p><strong>Phone:</strong> {phone}</p>
-          <p><strong>Address:</strong> {address}</p>
+          {isEditing && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 rounded-full opacity-0 hover:opacity-100 transition">
+              <label className="text-white text-xs cursor-pointer mb-1">
+                Change
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg"
+                  className="hidden"
+                  onChange={(e) => {
+                    const selected = e.target.files?.[0] || null;
+                    if (!selected) return;
+
+                    const allowedTypes = ["image/png", "image/jpeg", "image/jpg"];
+                    if (!allowedTypes.includes(selected.type)) {
+                      alert("Only PNG, JPG, and JPEG images are allowed.");
+                      return;
+                    }
+
+                    setFile(selected);
+                    setRemoveAvatar(false);
+                    setAvatarUrl(URL.createObjectURL(selected));
+                  }}
+                />
+              </label>
+
+              <button
+                onClick={() => {
+                  setFile(null);
+                  setRemoveAvatar(true);
+                  setAvatarUrl(null);
+                }}
+                className="text-white text-xs"
+              >
+                Remove
+              </button>
+            </div>
+          )}
         </div>
 
-        <button
-          onClick={() => router.push("/profile/update-profile")}
-          className="w-full bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition"
-        >
-          Edit Profile
-        </button>
+        {!isEditing ? (
+          <>
+            <div className="text-left space-y-2">
+              <p className="text-black"><strong>Name:</strong> {fullName}</p>
+              <p><strong>Email:</strong> {email}</p>
+              <p><strong>Phone:</strong> {phone}</p>
+              <p><strong>Address:</strong> {address}</p>
+            </div>
+
+            <button
+              onClick={() => setIsEditing(true)}
+              className="w-full bg-black text-white p-2 rounded-lg hover:bg-blue-700 transition"
+            >
+              Edit Profile
+            </button>
+          </>
+        ) : (
+          <>
+            <input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full border p-2 rounded"
+              placeholder="Full Name"
+            />
+
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border p-2 rounded"
+              placeholder="Email"
+            />
+
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full border p-2 rounded"
+              placeholder="Phone"
+            />
+
+            <textarea
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="w-full border p-2 rounded"
+              placeholder="Address"
+            />
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleSave}
+                className="flex-1 bg-green-600 text-white p-2 rounded-lg"
+              >
+                Save
+              </button>
+
+              <button
+                onClick={() => setIsEditing(false)}
+                className="flex-1 bg-gray-400 text-white p-2 rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

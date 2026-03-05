@@ -18,6 +18,7 @@ export default function Navbar() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+
       setUser(user);
     };
 
