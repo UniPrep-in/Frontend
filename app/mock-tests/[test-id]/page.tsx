@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 export default async function TestInstructionsPage({
   params,
@@ -94,13 +95,13 @@ export default async function TestInstructionsPage({
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="max-w-2xl w-full border rounded-xl p-8 shadow-sm">
-        <h1 className="text-2xl font-bold mb-4">{test.title}</h1>
+    <div className="min-h-screen flex items-center justify-center bg-neutral-100 p-6">
+      <div className="max-w-2xl w-full rounded-2xl bg-white p-8 shadow-xl">
+        <h1 className="text-2xl font-bold text-center mb-4">{test.title}</h1>
 
         <div className="space-y-2 text-gray-600">
           <p>
-            <strong>Year:</strong> {test.year}
+            <strong className="text-black">Year:</strong> {test.year}
           </p>
           <p>
             <strong>Duration:</strong> {test.duration_minutes} minutes
@@ -123,13 +124,14 @@ export default async function TestInstructionsPage({
           </ul>
         </div>
 
-        <form action={startTest} className="mt-8">
+        <form action={startTest} className="mt-8 flex gap-4">
           <button
             type="submit"
-            className="w-full bg-black text-white py-3 rounded-lg font-medium hover:opacity-90 transition"
+            className="w-full bg-emerald-300 text-black border py-3 rounded-lg hover:opacity-90 transition"
           >
             Start Test
           </button>
+          <Link className="w-full flex items-center justify-center bg-red-200 text-black border py-3 rounded-lg hover:opacity-90 transition" href="/mock-tests">Go Back</Link>
         </form>
       </div>
     </div>
