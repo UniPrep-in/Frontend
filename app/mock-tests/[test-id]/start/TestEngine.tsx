@@ -12,8 +12,6 @@ interface Question {
   id: string;
   question_text: string;
   question_order: number;
-  marks: number;
-  negative_marks: number;
   options: Option[];
 }
 
@@ -109,11 +107,27 @@ export default function TestEngine({
   }, []);
 
   /* ---------------- Answer Handling ---------------- */
-  function selectOption(optionId: string) {
+  async function selectOption(optionId: string) {
     setAnswers((prev) => ({
       ...prev,
       [currentQuestion.id]: optionId,
     }));
+
+    try {
+      await fetch("/api/save-answer", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          attemptId,
+          questionId: currentQuestion.id,
+          optionId,
+        }),
+      });
+    } catch (error) {
+      console.error("Autosave failed:", error);
+    }
   }
 
   function goToQuestion(index: number) {

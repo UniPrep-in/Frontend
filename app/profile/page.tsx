@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Navbar from "../components/ui/Navbar";
+import Link from "next/link";
+import Loader from "../components/ui/loader";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -144,15 +146,25 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="min-h-screen flex justify-center items-center">
-        Loading profile...
+        <Loader />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-200 to-slate-400 flex justify-center items-center">
+    <main className="min-h-screen bg-neutral-100 flex justify-center items-center">
       <Navbar />
-      <div className="bg-white p-8 rounded-2xl shadow-2xl w-96 space-y-4 text-center">
+      <div className="grid grid-cols-3 gap-8">
+        <div className="shadow-xl flex flex-col gap-4 items-center justify-center bg-linear-to-r from-purple-200 to-pink-200 via-white rounded-2xl">
+          <span className="text-6xl">👋</span>
+          <div className="flex flex-col gap-2 items-center justify-center">
+            <h1 className="text-2xl font-light">Welcome Back, {fullName}</h1>
+            <span className="font-light text-sm">Ready For the practice today</span>
+          </div>
+          <Link href="/mock-tests" className="text-white bg-black rounded-xl px-6 py-4 font-light leading-relaxed">Start Practicing</Link>
+        </div>
+
+        <div className="bg-white p-8 rounded-2xl shadow-xl w-96 space-y-4 text-center">
         <h2 className="text-2xl font-bold">My Profile</h2>
 
         {/* Avatar */}
@@ -272,6 +284,7 @@ export default function ProfilePage() {
           </>
         )}
       </div>
-    </div>
+      </div>
+    </main>
   );
 }

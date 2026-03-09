@@ -23,7 +23,11 @@ export async function POST(req: Request) {
           getAll() {
             return cookieStore.getAll();
           },
-          setAll() {},
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          },
         },
       }
     );
@@ -74,10 +78,13 @@ export async function POST(req: Request) {
     }
 
     // Fetch correct options
+    const questionIds = questions.map((q) => q.id);
+
     const { data: correctOptions } = await supabase
       .from("options")
       .select("id, question_id")
-      .eq("is_correct", true);
+      .eq("is_correct", true)
+      .in("question_id", questionIds);
 
     if (!correctOptions) {
       return NextResponse.json(
@@ -93,7 +100,7 @@ export async function POST(req: Request) {
     });
 
     let score = 0;
-    const userAnswersToInsert = [];
+    const userAnswersToInsert: any[] = [];
 
     for (const question of questions) {
       const selectedOptionId = answers[question.id];
@@ -128,7 +135,7 @@ export async function POST(req: Request) {
       .from("test_attempts")
       .update({
         score,
-        completed_at: new Date(),
+        completed_at: new Date().toISOString(),
       })
       .eq("id", attemptId);
 

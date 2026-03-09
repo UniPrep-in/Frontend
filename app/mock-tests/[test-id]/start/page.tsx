@@ -16,6 +16,9 @@ export default async function StartTestPage({
   const testId = resolvedParams["test-id"];
   const attemptId = resolvedSearchParams?.attemptId;
 
+  console.log("TEST ID:", testId);
+  console.log("ATTEMPT ID:", attemptId);
+
   if (!attemptId) redirect("/mock-tests");
 
   const cookieStore = await cookies();
@@ -40,12 +43,16 @@ export default async function StartTestPage({
   if (!user) redirect("/auth");
 
   // Validate attempt
-  const { data: attempt } = await supabase
+  const { data: attempt, error: attemptError } = await supabase
     .from("test_attempts")
     .select("*")
     .eq("id", attemptId)
     .eq("user_id", user.id)
-    .single();
+    .eq("test_id", testId)
+    .maybeSingle();
+
+  console.log("ATTEMPT DATA:", attempt);
+  console.log("ATTEMPT ERROR:", attemptError);
 
   if (!attempt) redirect("/mock-tests");
 
@@ -59,15 +66,13 @@ export default async function StartTestPage({
   if (!test) redirect("/mock-tests");
 
   // Fetch questions
-  const { data: questions } = await supabase
+  const { data: questions, error: questionsError } = await supabase
     .from("questions")
     .select(
       `
       id,
       question_text,
       question_order,
-      marks,
-      negative_marks,
       options (
         id,
         option_text
@@ -77,7 +82,13 @@ export default async function StartTestPage({
     .eq("test_id", testId)
     .order("question_order", { ascending: true });
 
-  if (!questions) redirect("/mock-tests");
+  console.log("QUESTIONS:", questions);
+  console.log("QUESTIONS ERROR:", questionsError);
+
+  if (!questions || questions.length === 0) {
+    console.log("NO QUESTIONS FOUND FOR TEST:", testId);
+    redirect("/mock-tests");
+  }
 
   return (
     <TestEngine
