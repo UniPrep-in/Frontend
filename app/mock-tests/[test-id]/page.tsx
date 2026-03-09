@@ -98,7 +98,7 @@ export default async function TestInstructionsPage({
     <div className="min-h-screen flex items-center justify-center bg-neutral-100 p-6">
       <div className="max-w-6xl w-full rounded-2xl bg-white p-8 shadow-xl pb-40">
         <h1 className="text-2xl font-semibold border-b">General Instruction</h1>
-        <ul className="space-y-2 p-6 text-neutral-600 list-decimal">
+        <ul className="space-y-2 p-6 text-black list-decimal">
           <li>
             Total Duration of the examination is defined per mock(usually 60
             minutes)
@@ -153,17 +153,36 @@ export default async function TestInstructionsPage({
               </div>
             </div>
           </li>
-          <h1 className="underline underline-black underline-offset-2 text-black text-2xl font-semibold">Navigating to a question:</h1>
+          <h1 className="underline underline-black underline-offset-2 text-black text-2xl font-semibold pt-8">Navigating to a question:</h1>
           <li>
             To answer a question do the following :
-              <ul className="list-disc px-4">
+              <ul className="list-disc px-4 flex flex-col gap-2">
                 <li>Click on the question number in the question palette at the right of your screen to go to that numbered question directly.</li>
                 <li>Click on Save & Next to save your answer for the current question and then go to the next question.</li>
                 <li>Click on Mark for Review & Next to save your answer for the current question, mark for review, and then fo to the next question.</li>
               </ul>
           </li>
-          <h1 className="underline underline-black underline-offset-2 text-black text-2xl font-semibold">Answering a Question:</h1>
-          <li>Procedure for answering a multiple choice type question:</li>
+          <h1 className="underline underline-black underline-offset-2 text-black text-2xl font-semibold pt-8">Answering a Question:</h1>
+          <li>Procedure for answering a multiple choice type question:
+              <ul className="list-disc px-4 flex flex-col gap-2">
+                <li>To select your answer, click on the button of one of the options</li>
+                <li>To deslect your chosen answer, click on the button of the chosen option again or click on the Clear Response button.</li>
+                <li>To change your chosen answer, click on the button of another option.</li>
+                <li>To save your answer, you MUST click on Save & Next button.</li>
+                <li>To mark the question for review, click on the Mark for Review & Next button.</li>
+                <li>To change your answer to a question that has already been answered, first select that question for answering and then follow the procedure for answering that type of question.</li>
+              </ul>
+          </li>
+
+          <h1 className="underline underline-black underline-offset-2 text-black text-2xl font-semibold pt-8">Security & Fairness Protocols:</h1>
+          <li><strong>Attempts Policy: </strong>Each mock test is strictly limited. However, candidates may review thier answers and deatiled solutions unlimited times.</li>
+          <li><strong>Watermarking: </strong>To maintain exam integrity, a user-specific watermark is displayed across the interface, adhering to standard NTA security protocols</li>
+          <li><strong>Full-Screen Enforcement: </strong>For fairness and discipline, candidates are strictly prohibited froom exiting Full-Screen Mode.
+              <ul className="list-disc px-4 flex flex-col gap-2">
+                <li>You are alloted 2 warnings per mock.</li>
+                <li>Violation of this rule (exiting full screen more than twice) will result in automatic submission of your test.</li>
+              </ul>
+          </li>
         </ul>
 
         <form
