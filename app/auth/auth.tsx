@@ -6,6 +6,8 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, User, Eye, EyeOff, Loader2 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
+import Link from "next/link";
+import { IoMdArrowRoundBack } from "react-icons/io";
 
 export default function AuthForm() {
   const supabase = createClient();
@@ -106,22 +108,52 @@ export default function AuthForm() {
 
         {/* Right Side - Form */}
         <div className="w-full lg:w-1/2 p-8 lg:p-12 flex flex-col justify-center">
-          <div className="max-w-sm mx-auto w-full">
-            {/* Header */}
+        {/* Header */}
             <div className="mb-8">
+              <motion.div className="flex gap-4 items-center mb-2">
+                <motion.div className="w-fit p-2 rounded-full bg-neutral-100 border border-neutral-200 shadow-xl">
+                <Link href="/" className="">
+                  <IoMdArrowRoundBack className="text-xl"/>
+                </Link>
+              </motion.div>
               <motion.h1 
                 key={isLogin ? "login" : "signup"}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="text-2xl font-bold text-slate-900 mb-2"
+                className="text-2xl font-bold text-slate-900"
               >
                 {isLogin ? "Welcome back" : "Create account"}
               </motion.h1>
+              </motion.div>
               <p className="text-slate-500 text-sm">
                 {isLogin 
                   ? "Enter your credentials to access your account" 
                   : "Start your journey to academic excellence"}
               </p>
+            </div>
+
+          <div className="max-w-sm mx-auto w-full">
+            {/* Social Login */}
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={loading}
+                className="flex shadow w-full items-center justify-center gap-2 py-2.5 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FcGoogle className="text-xl" />
+                <span className="text-sm font-medium text-slate-700">Continue with Google</span>
+              </button>
+
+              {/* Divider */}
+            <div className="relative my-8">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-2 text-slate-400 font-medium">
+                  Or Enter Details
+                </span>
+              </div>
             </div>
 
             {/* Form */}
@@ -245,29 +277,6 @@ export default function AuthForm() {
                 )}
               </motion.button>
             </form>
-
-            {/* Divider */}
-            <div className="relative my-8">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-200" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-slate-400 font-medium">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            {/* Social Login */}
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                className="flex shadow w-full items-center justify-center gap-2 py-2.5 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <FcGoogle className="text-xl" />
-                <span className="text-sm font-medium text-slate-700">Google</span>
-              </button>
 
             {/* Toggle Auth Mode */}
             <p className="mt-8 text-center text-sm text-slate-600">
