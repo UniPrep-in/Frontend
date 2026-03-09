@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import Navbar from "../components/ui/Navbar";
 import Link from "next/link";
 import Loader from "../components/ui/loader";
+import { IoSettings } from "react-icons/io5";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function ProfilePage() {
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [memberSince, setMemberSince] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [removeAvatar, setRemoveAvatar] = useState(false);
 
@@ -33,6 +35,10 @@ export default function ProfilePage() {
       }
 
       setEmail(user.email || "");
+      if (user.created_at) {
+        const date = new Date(user.created_at);
+        setMemberSince(date.toLocaleDateString(undefined, { year: "numeric", month: "long" }));
+      }
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -44,7 +50,8 @@ export default function ProfilePage() {
         setFullName(user.user_metadata?.display_name || "");
         setPhone(profile.phone);
         setAddress(profile.address);
-        const avatar = profile.avatar_url || user.user_metadata?.avatar_url || null;
+        const avatar =
+          profile.avatar_url || user.user_metadata?.avatar_url || null;
         setAvatarUrl(avatar);
       } else {
         setFullName(user.user_metadata?.display_name || "");
@@ -121,15 +128,13 @@ export default function ProfilePage() {
     }
 
     // Update or create profile row (handles case where row does not exist)
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .upsert({
-        id: user.id,
-        phone,
-        address,
-        avatar_url: uploadedUrl,
-        updated_at: new Date().toISOString(),
-      });
+    const { error: profileError } = await supabase.from("profiles").upsert({
+      id: user.id,
+      phone,
+      address,
+      avatar_url: uploadedUrl,
+      updated_at: new Date().toISOString(),
+    });
 
     if (profileError) {
       console.error("Profile update failed:", profileError);
@@ -152,138 +157,177 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-100 flex justify-center items-center">
+    <main className="min-h-screen bg-neutral-100 flex justify-center items-start md:items-center px-4 py-8">
       <Navbar />
-      <div className="grid grid-cols-3 gap-8">
-        <div className="shadow-xl flex flex-col gap-4 items-center justify-center bg-linear-to-r from-purple-200 to-pink-200 via-white rounded-2xl">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
+        <div className="shadow-xl flex flex-col px-6 py-6 md:px-8 col-span-1 w-full gap-4 items-center justify-center bg-linear-to-r from-purple-200 to-pink-200 via-white rounded-2xl text-center">
           <span className="text-6xl">👋</span>
           <div className="flex flex-col gap-2 items-center justify-center">
             <h1 className="text-2xl font-light">Welcome Back, {fullName}</h1>
-            <span className="font-light text-sm">Ready For the practice today</span>
+            <span className="font-light text-sm">
+              Ready For the practice today
+            </span>
           </div>
-          <Link href="/mock-tests" className="text-white bg-black rounded-xl px-6 py-4 font-light leading-relaxed">Start Practicing</Link>
+          <Link
+            href="/mock-tests"
+            className="text-white bg-black rounded-xl px-6 py-4 font-light leading-relaxed"
+          >
+            Start Practicing
+          </Link>
         </div>
 
-        <div className="bg-white p-8 rounded-2xl shadow-xl w-96 space-y-4 text-center">
-        <h2 className="text-2xl font-bold">My Profile</h2>
-
-        {/* Avatar */}
-        <div className="relative w-28 h-28 mx-auto">
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt="Profile"
-              className="w-28 h-28 rounded-full object-cover border-4 border-blue-500"
-            />
-          ) : (
-            <div className="w-28 h-28 rounded-full bg-gray-300 flex items-center justify-center">
-              No Image
-            </div>
-          )}
-
-          {isEditing && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 rounded-full opacity-0 hover:opacity-100 transition">
-              <label className="text-white text-xs cursor-pointer mb-1">
-                Change
-                <input
-                  type="file"
-                  accept="image/png,image/jpeg,image/jpg"
-                  className="hidden"
-                  onChange={(e) => {
-                    const selected = e.target.files?.[0] || null;
-                    if (!selected) return;
-
-                    const allowedTypes = ["image/png", "image/jpeg", "image/jpg"];
-                    if (!allowedTypes.includes(selected.type)) {
-                      alert("Only PNG, JPG, and JPEG images are allowed.");
-                      return;
-                    }
-
-                    setFile(selected);
-                    setRemoveAvatar(false);
-                    setAvatarUrl(URL.createObjectURL(selected));
-                  }}
-                />
-              </label>
-
-              <button
-                onClick={() => {
-                  setFile(null);
-                  setRemoveAvatar(true);
-                  setAvatarUrl(null);
-                }}
-                className="text-white text-xs"
-              >
-                Remove
-              </button>
-            </div>
-          )}
-        </div>
-
-        {!isEditing ? (
-          <>
-            <div className="text-left space-y-2">
-              <p className="text-black"><strong>Name:</strong> {fullName}</p>
-              <p><strong>Email:</strong> {email}</p>
-              <p><strong>Phone:</strong> {phone}</p>
-              <p><strong>Address:</strong> {address}</p>
-            </div>
-
+        <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl w-full col-span-1 md:col-span-2 space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-light">My Profile</h2>
             <button
-              onClick={() => setIsEditing(true)}
-              className="w-full bg-black text-white p-2 rounded-lg hover:bg-blue-700 transition"
-            >
-              Edit Profile
-            </button>
-          </>
-        ) : (
-          <>
-            <input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full border p-2 rounded"
-              placeholder="Full Name"
-            />
-
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border p-2 rounded"
-              placeholder="Email"
-            />
-
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full border p-2 rounded"
-              placeholder="Phone"
-            />
-
-            <textarea
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full border p-2 rounded"
-              placeholder="Address"
-            />
-
-            <div className="flex gap-2">
-              <button
-                onClick={handleSave}
-                className="flex-1 bg-green-600 text-white p-2 rounded-lg"
+                onClick={() => setIsEditing(true)}
+                className="text-2xl"
               >
-                Save
+                <IoSettings className="text-neutral-500" />
               </button>
+          </div>
+        
+          {/* Avatar */}
+          <div className="flex flex-col sm:flex-row items-center sm:items-center gap-4 sm:gap-6">
+            <div className="relative w-28 h-28 sm:w-34 sm:h-34">
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt="Profile"
+                  className="w-28 h-28 sm:w-34 sm:h-34 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-28 h-28 rounded-full bg-gray-300 flex items-center justify-center">
+                  Add something
+                </div>
+              )}
 
-              <button
-                onClick={() => setIsEditing(false)}
-                className="flex-1 bg-gray-400 text-white p-2 rounded-lg"
-              >
-                Cancel
-              </button>
+              {isEditing && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 rounded-full opacity-0 hover:opacity-100 transition">
+                  <label className="text-white text-xs cursor-pointer mb-1">
+                    Change
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg"
+                      className="hidden"
+                      onChange={(e) => {
+                        const selected = e.target.files?.[0] || null;
+                        if (!selected) return;
+
+                        const allowedTypes = [
+                          "image/png",
+                          "image/jpeg",
+                          "image/jpg",
+                        ];
+                        if (!allowedTypes.includes(selected.type)) {
+                          alert("Only PNG, JPG, and JPEG images are allowed.");
+                          return;
+                        }
+
+                        setFile(selected);
+                        setRemoveAvatar(false);
+                        setAvatarUrl(URL.createObjectURL(selected));
+                      }}
+                    />
+                  </label>
+
+                  <button
+                    onClick={() => {
+                      setFile(null);
+                      setRemoveAvatar(true);
+                      setAvatarUrl(null);
+                    }}
+                    className="text-white text-xs"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
             </div>
-          </>
-        )}
-      </div>
+            <div className="flex flex-col justify-center">
+              <p className="text-sm text-neutral-500">Learning since</p>
+              <p className="text-lg font-medium text-black">
+                {memberSince || "—"}
+              </p>
+            </div>
+          </div>
+
+          {!isEditing ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 max-w-2xl">
+                <div className="bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-200">
+                  <p className="text-xs text-neutral-500">Name</p>
+                  <p className="text-lg font-medium text-neutral-800">{fullName || "—"}</p>
+                </div>
+
+                <div className="bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-200">
+                  <p className="text-xs text-neutral-500">Email</p>
+                  <p className="text-lg font-medium text-neutral-800 break-words">
+                    {email || "—"}
+                  </p>
+                </div>
+
+                <div className="bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-200">
+                  <p className="text-xs text-neutral-500">Phone</p>
+                  <p className="text-lg font-medium text-neutral-800">{phone || "—"}</p>
+                </div>
+
+                <div className="bg-neutral-50 px-4 py-2 rounded-xl border border-neutral-200">
+                  <p className="text-xs text-neutral-500">Address</p>
+                  <p className="text-lg font-medium text-neutral-800 break-words">
+                    {address || "—"}
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full border p-3 rounded-lg"
+                placeholder="Full Name"
+              />
+
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full border p-3 rounded-lg"
+                placeholder="Email"
+              />
+
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full border p-3 rounded-lg"
+                placeholder="Phone"
+              />
+
+              <textarea
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full border p-3 rounded-lg"
+                placeholder="Address"
+              />
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={handleSave}
+                  className="flex-1 bg-green-600 text-white p-2 rounded-lg"
+                >
+                  Save
+                </button>
+
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="flex-1 bg-gray-400 text-white p-2 rounded-lg"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </main>
   );
