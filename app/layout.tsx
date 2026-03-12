@@ -2,6 +2,13 @@ import type { Metadata } from "next";
 import "./globals.css";
 import SmoothScrollProvider from "./components/ui/SmoothScrollProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
+import { Comfortaa } from 'next/font/google';
+
+const comfortaa = Comfortaa({
+  subsets: ['latin'],
+  weight: ['300','400','700'], // only valid weights
+  style: ['normal'],  // enable italic
+});
 
 export const metadata: Metadata = {
   title: "Uniprep",
@@ -14,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={comfortaa.className}>
       <body
         className="text-black"
       >
