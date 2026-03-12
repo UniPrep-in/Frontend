@@ -80,7 +80,7 @@ export default function Navbar() {
 
   const navlinks = [
     { title: "Home", link: "/" },
-    { title: "PYQs", link: "/pyqs" },
+    { title: "PYQs", link: "/mock-tests" },
     { title: "Materials", link: "/materials" },
     { title: "Notice", link: "/notice" },
   ];

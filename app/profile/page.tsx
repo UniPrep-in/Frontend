@@ -6,6 +6,7 @@ import Navbar from "../components/ui/Navbar";
 import Link from "next/link";
 import Loader from "../components/ui/loader";
 import { IoSettings } from "react-icons/io5";
+import TodoList from "./components/todo";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -157,7 +158,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-100 flex justify-center items-start md:items-center px-4 py-8">
+    <main className="min-h-screen bg-neutral-100 flex justify-center items-start md:items-center px-4 py-8 pt-24">
       <Navbar />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
         <div className="shadow-xl flex flex-col px-6 py-6 md:px-8 col-span-1 w-full gap-4 items-center justify-center bg-linear-to-r from-purple-200 to-pink-200 via-white rounded-2xl text-center">
@@ -327,6 +328,9 @@ export default function ProfilePage() {
               </div>
             </>
           )}
+        </div>
+        <div className="col-span-1">
+          <TodoList />
         </div>
       </div>
     </main>
