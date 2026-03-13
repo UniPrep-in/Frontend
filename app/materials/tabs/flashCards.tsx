@@ -440,62 +440,138 @@ export default function FlashCards() {
             </div>
           ) : (
             <>
-              <div className="flex flex-col gap-2 bg-neutral-100 rounded-xl p-4 mb-4 max-w-lg">
-                <input
-                  type="text"
-                  placeholder="Word"
-                  value={newWord}
-                  onChange={(e) => setNewWord(e.target.value)}
-                  className="px-3 py-2 rounded border border-gray-300"
-                />
-                <textarea
-                  placeholder="Meaning"
-                  value={newMeaning}
-                  onChange={(e) => setNewMeaning(e.target.value)}
-                  className="px-3 py-2 rounded border border-gray-300"
-                />
-                <input
-                  type="text"
-                  placeholder="Type (e.g., noun, verb)"
-                  value={newType}
-                  onChange={(e) => setNewType(e.target.value)}
-                  className="px-3 py-2 rounded border border-gray-300"
-                />
-                <input
-                  type="text"
-                  placeholder="Hook"
-                  value={newHook}
-                  onChange={(e) => setNewHook(e.target.value)}
-                  className="px-3 py-2 rounded border border-gray-300"
-                />
-                <input
-                  type="text"
-                  placeholder="Example"
-                  value={newExample}
-                  onChange={(e) => setNewExample(e.target.value)}
-                  className="px-3 py-2 rounded border border-gray-300"
-                />
-                <input
-                  type="text"
-                  placeholder="Synonyms (comma-separated)"
-                  value={newSynonyms}
-                  onChange={(e) => setNewSynonyms(e.target.value)}
-                  className="px-3 py-2 rounded border border-gray-300"
-                />
-                <input
-                  type="text"
-                  placeholder="Antonyms (comma-separated)"
-                  value={newAntonyms}
-                  onChange={(e) => setNewAntonyms(e.target.value)}
-                  className="px-3 py-2 rounded border border-gray-300"
-                />
-                <button
-                  onClick={handleAddFlashcard}
-                  className="bg-emerald-300 px-4 py-2 rounded-xl text-black font-semibold border mt-2"
-                >
-                  Add Flashcard
-                </button>
-              </div>
+              <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-gray-100">
+  {/* Header */}
+  <div className="flex items-center gap-2 mb-5 text-gray-700">
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+    </svg>
+    <h3 className="font-semibold text-lg">Add New Word</h3>
+  </div>
+
+  {/* Main Word & Meaning Row */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    <div className="relative group">
+      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+        Word
+      </label>
+      <input
+        type="text"
+        placeholder="e.g., Serendipity"
+        value={newWord}
+        onChange={(e) => setNewWord(e.target.value)}
+        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl outline-none transition-all duration-200 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 placeholder:text-gray-400 font-medium text-gray-800"
+      />
+      <div className="absolute right-3 top-[2.1rem] text-gray-400">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+        </svg>
+      </div>
+    </div>
+
+    <div className="relative group">
+      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+        Meaning
+      </label>
+      <textarea
+        placeholder="Enter definition..."
+        value={newMeaning}
+        onChange={(e) => setNewMeaning(e.target.value)}
+        rows={1}
+        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl outline-none transition-all duration-200 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 placeholder:text-gray-400 resize-none text-gray-700 leading-relaxed"
+      />
+    </div>
+  </div>
+
+  {/* Type & Hook Row */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    <div className="relative">
+      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+        Part of Speech
+      </label>
+      <div className="relative">
+        <input
+          type="text"
+          placeholder="noun, verb, adjective..."
+          value={newType}
+          onChange={(e) => setNewType(e.target.value)}
+          className="w-full px-4 py-2.5 bg-gray-50 border-2 border-gray-200 rounded-xl outline-none transition-all duration-200 focus:bg-white focus:border-purple-500 focus:ring-4 focus:ring-purple-500/10 placeholder:text-gray-400 text-sm"
+        />
+        <span className="absolute right-3 top-2.5 text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">Type</span>
+      </div>
+    </div>
+
+    <div className="relative">
+      <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+        Memory Hook
+      </label>
+      <input
+        type="text"
+        placeholder="Mnemonic or association..."
+        value={newHook}
+        onChange={(e) => setNewHook(e.target.value)}
+        className="w-full px-4 py-2.5 bg-gray-50 border-2 border-gray-200 rounded-xl outline-none transition-all duration-200 focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 placeholder:text-gray-400 text-sm"
+      />
+    </div>
+  </div>
+
+  {/* Example Sentence */}
+  <div className="mb-4">
+    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1.5">
+      Example Usage
+    </label>
+    <div className="relative">
+      <input
+        type="text"
+        placeholder="Use the word in a sentence..."
+        value={newExample}
+        onChange={(e) => setNewExample(e.target.value)}
+        className="w-full px-4 py-2.5 pl-10 bg-gray-50 border-2 border-gray-200 rounded-xl outline-none transition-all duration-200 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 placeholder:text-gray-400 text-sm italic"
+      />
+    </div>
+  </div>
+
+  {/* Synonyms & Antonyms Row */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <div>
+      <label className="block text-xs font-medium text-emerald-600 uppercase tracking-wider mb-1.5">
+        Synonyms
+      </label>
+      <input
+        type="text"
+        placeholder="happy, joyful, cheerful..."
+        value={newSynonyms}
+        onChange={(e) => setNewSynonyms(e.target.value)}
+        className="w-full px-4 py-2.5 bg-emerald-50/50 border-2 border-emerald-200 rounded-xl outline-none transition-all duration-200 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 placeholder:text-emerald-400/70 text-sm"
+      />
+    </div>
+
+    <div>
+      <label className="block text-xs font-medium text-rose-600 uppercase tracking-wider mb-1.5">
+        Antonyms
+      </label>
+      <input
+        type="placeholder"
+        placeholder="sad, unhappy, miserable..."
+        value={newAntonyms}
+        onChange={(e) => setNewAntonyms(e.target.value)}
+        className="w-full px-4 py-2.5 bg-rose-50/50 border-2 border-rose-200 rounded-xl outline-none transition-all duration-200 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 placeholder:text-rose-400/70 text-sm"
+      />
+    </div>
+  </div>
+
+  {/* Submit Button */}
+  <button
+    onClick={handleAddFlashcard}
+    className="w-full bg-emerald-300 border text-black font-semibold py-3.5 rounded-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 group"
+  >
+    <svg className="w-5 h-5 transition-transform group-hover:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    </svg>
+    Add Flashcard
+  </button>
+</div>
+              <h1 className="text-xl border-b p-4">Your Flashcards</h1>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6 mt-4">
                 {filteredFlashcards.map((flashcard, index) => {
                   return (
