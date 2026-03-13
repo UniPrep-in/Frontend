@@ -111,11 +111,8 @@ export default function Navbar() {
         <nav className="flex items-center justify-between px-4 py-2.5 md:px-6">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="relative h-8 w-8 md:h-9 md:w-9 overflow-hidden rounded-lg flex items-center justify-center">
-              <Image src="/logo.svg" alt="logo" width={100} height={100} />
-            </div>
             <span className="hidden sm:block text-slate-900 text-sm md:text-base tracking-tight">
-              Uniprep
+              Uniprep.in
             </span>
           </Link>
 
