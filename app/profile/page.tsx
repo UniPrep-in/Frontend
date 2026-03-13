@@ -24,7 +24,16 @@ export default function ProfilePage() {
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [removeAvatar, setRemoveAvatar] = useState(false);
-  const [flashcards, setFlashcards] = useState<any[]>([]);
+  interface Flashcard {
+    word: string;
+    meaning: string;
+    type?: string;
+    synonyms?: string[];
+    antonyms?: string[];
+    example?: string;
+  }
+
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
 
   useEffect(() => {
     async function fetchData() {
@@ -342,7 +351,7 @@ export default function ProfilePage() {
           <TodoList />
         </div>
         <div className="col-span-2">
-          <UserFlashcardCarousel flashcards={flashcards} />
+          <UserFlashcardCarousel />
         </div>
       </div>
     </main>
