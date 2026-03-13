@@ -7,6 +7,7 @@ import Link from "next/link";
 import Loader from "../components/ui/loader";
 import { IoSettings } from "react-icons/io5";
 import TodoList from "./components/todo";
+import UserFlashcardCarousel from "./components/flashCards";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function ProfilePage() {
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [removeAvatar, setRemoveAvatar] = useState(false);
+  const [flashcards, setFlashcards] = useState<any[]>([]);
 
   useEffect(() => {
     async function fetchData() {
@@ -59,6 +61,13 @@ export default function ProfilePage() {
         const avatar = user.user_metadata?.avatar_url || null;
         setAvatarUrl(avatar);
       }
+
+      const { data: cards } = await supabase
+        .from("flash_cards")
+        .select("word, meaning, type, synonyms, antonyms, example")
+        .eq("user_id", user.id);
+
+      if (cards) setFlashcards(cards);
 
       setLoading(false);
     }
@@ -331,6 +340,9 @@ export default function ProfilePage() {
         </div>
         <div className="col-span-1">
           <TodoList />
+        </div>
+        <div className="col-span-2">
+          <UserFlashcardCarousel flashcards={flashcards} />
         </div>
       </div>
     </main>
