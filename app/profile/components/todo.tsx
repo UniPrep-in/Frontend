@@ -106,14 +106,14 @@ export default function TodoList() {
           value={newTodo}
           onChange={(e) => setNewTodo(e.target.value)}
           placeholder="What's the plan?"
-          className="border-b px-2 py-1"
+          className="border-b px-2 py-1 focus:border-b outline-0"
         />
         <input
           type="text"
           value={newDescription}
           onChange={(e) => setNewDescription(e.target.value)}
           placeholder="Tell Us About the plan"
-          className="border-b px-2 py-1"
+          className="border-b px-2 py-1 focus:border-b outline-0"
         />
         </div>
         <button
