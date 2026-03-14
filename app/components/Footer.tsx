@@ -72,7 +72,7 @@ export default function Footer() {
           {/* Left Side - Brand */}
           <div className="flex flex-col gap-6">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-              Uniprep
+              Uniprep.in
             </h2>
             <p className="text-gray-600 text-base md:text-lg max-w-md leading-relaxed">
               Empowering learners worldwide with expert-led courses and industry-recognized certificates. Start your journey today.

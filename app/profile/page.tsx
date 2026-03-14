@@ -347,10 +347,10 @@ export default function ProfilePage() {
             </>
           )}
         </div>
-        <div className="col-span-1 order-3 md:order-none">
+        <div className="col-span-1 order-3 md:order-0">
           <TodoList />
         </div>
-        <div className="col-span-1 md:col-span-2 order-4 md:order-none">
+        <div className="col-span-1 md:col-span-2 order-4 md:order-0">
           <UserFlashcardCarousel />
         </div>
       </div>
