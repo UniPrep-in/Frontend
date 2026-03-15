@@ -41,25 +41,23 @@ export default function Footer() {
         { name: "Courses", href: "#" },
         { name: "Pricing", href: "#" },
         { name: "Certificates", href: "#" },
-        { name: "For Teams", href: "#" },
       ],
     },
     {
       title: "Company",
       links: [
-        { name: "About Us", href: "#" },
+        { name: "About Us", href: "/footer/about-us" },
+        { name: "Contact Us", href: "/footer/contact-us" },
         { name: "Careers", href: "#" },
         { name: "Blog", href: "#" },
-        { name: "Press", href: "#" },
       ],
     },
     {
-      title: "Resources",
+      title: "Legal",
       links: [
-        { name: "Help Center", href: "#" },
-        { name: "Community", href: "#" },
-        { name: "Contact", href: "#" },
-        { name: "Partners", href: "#" },
+        { name: "Privacy Policy", href: "/footer/privacy-policy" },
+        { name: "Terms & Conditions", href: "/footer/terms-and-conditions" },
+        { name: "Refund Policy", href: "/footer/refund-policy" },
       ],
     },
   ];
@@ -120,15 +118,16 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <div className="mt-12 pt-8 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-gray-500 text-sm">
-            © 2026 Uniprep. All rights reserved.
-          </p>
+          <div className="text-gray-500 text-sm flex flex-col items-center sm:items-start text-center sm:text-left">
+            <p>© 2026 RankersEdge Learning. All rights reserved.</p>
+            <p>UniPrep is a platform operated by RankersEdge Learning</p>
+          </div>
           <div className="flex gap-6">
-            <Link href="#" className="text-gray-500 hover:text-gray-900 text-sm transition-colors">
+            <Link href="/footer/privacy-policy" className="text-gray-500 hover:text-gray-900 text-sm transition-colors">
               Privacy Policy
             </Link>
-            <Link href="#" className="text-gray-500 hover:text-gray-900 text-sm transition-colors">
-              Terms of Service
+            <Link href="/footer/terms-and-conditions" className="text-gray-500 hover:text-gray-900 text-sm transition-colors">
+              Terms & Conditions
             </Link>
           </div>
         </div>
