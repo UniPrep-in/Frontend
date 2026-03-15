@@ -25,7 +25,7 @@ export async function POST(req: Request) {
           },
           setAll(cookiesToSet) {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set({ name, value, ...options })
             );
           },
         },
@@ -64,40 +64,36 @@ export async function POST(req: Request) {
       );
     }
 
-    // Fetch all questions for this test
-    const { data: questions } = await supabase
+    // Fetch all questions for this test (id only - marks/negative_marks may not exist in DB)
+    const { data: questionsData, error: questionsError } = await supabase
       .from("questions")
-      .select("id, marks, negative_marks")
+      .select("id")
       .eq("test_id", attempt.test_id);
 
-    if (!questions) {
-      return NextResponse.json(
-        { error: "Questions not found" },
-        { status: 404 }
-      );
+    const questions = Array.isArray(questionsData) ? questionsData : [];
+    if (questions.length === 0 && questionsError) {
+      console.error("Submit test questions error:", questionsError);
     }
 
-    // Fetch correct options
-    const questionIds = questions.map((q) => q.id);
+    // Fetch correct options (only if we have questions)
+    let correctMap: Record<string, string> = {};
+    if (questions.length > 0) {
+      const questionIds = questions.map((q) => q.id);
+      const { data: correctOptions, error: optionsError } = await supabase
+        .from("options")
+        .select("id, question_id")
+        .eq("is_correct", true)
+        .in("question_id", questionIds);
 
-    const { data: correctOptions } = await supabase
-      .from("options")
-      .select("id, question_id")
-      .eq("is_correct", true)
-      .in("question_id", questionIds);
-
-    if (!correctOptions) {
-      return NextResponse.json(
-        { error: "Correct options not found" },
-        { status: 404 }
-      );
+      if (optionsError) {
+        console.error("Submit test options error:", optionsError);
+      }
+      if (Array.isArray(correctOptions)) {
+        correctOptions.forEach((opt) => {
+          correctMap[opt.question_id] = opt.id;
+        });
+      }
     }
-
-    // Map correct answers
-    const correctMap: Record<string, string> = {};
-    correctOptions.forEach((opt) => {
-      correctMap[opt.question_id] = opt.id;
-    });
 
     let score = 0;
     const userAnswersToInsert: any[] = [];
@@ -111,10 +107,12 @@ export async function POST(req: Request) {
         correctMap[question.id] &&
         correctMap[question.id] === selectedOptionId;
 
+      const marks = (question as { marks?: number }).marks ?? 1;
+      const negativeMarks = (question as { negative_marks?: number }).negative_marks ?? 0;
       if (isCorrect) {
-        score += question.marks;
+        score += marks;
       } else {
-        score -= question.negative_marks ?? 0;
+        score -= negativeMarks;
       }
 
       userAnswersToInsert.push({
@@ -127,17 +125,34 @@ export async function POST(req: Request) {
 
     // Insert user answers
     if (userAnswersToInsert.length > 0) {
-      await supabase.from("user_answers").insert(userAnswersToInsert);
+      const { error: insertError } = await supabase
+        .from("user_answers")
+        .insert(userAnswersToInsert);
+      if (insertError) {
+        console.error("Submit test insert error:", insertError);
+        return NextResponse.json(
+          { error: insertError.message || "Could not save answers" },
+          { status: 500 }
+        );
+      }
     }
 
     // Update attempt score
-    await supabase
+    const { error: updateError } = await supabase
       .from("test_attempts")
       .update({
         score,
         completed_at: new Date().toISOString(),
       })
       .eq("id", attemptId);
+
+    if (updateError) {
+      console.error("Submit test update error:", updateError);
+      return NextResponse.json(
+        { error: updateError.message || "Could not finalize result" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -146,7 +161,10 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Submit test error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      {
+        error:
+          error instanceof Error ? error.message : "Internal server error",
+      },
       { status: 500 }
     );
   }

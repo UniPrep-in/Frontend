@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import ProceedLoader from "./ProceedLoader";
 
 export default async function TestInstructionsPage({
   params,
@@ -189,6 +190,7 @@ export default async function TestInstructionsPage({
           action={startTest}
           className="fixed bottom-0 items-center justify-center left-0 w-full bg-white border-t border-neutral-300 p-4 flex flex-col gap-4"
         >
+          <ProceedLoader />
           <label className="flex items-center py-2 gap-3 text-md max-w-6xl text-black">
             <input
               id="confirmStart"

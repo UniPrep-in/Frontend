@@ -13,9 +13,9 @@ export async function middleware(req: NextRequest) {
         getAll() {
           return req.cookies.getAll()
         },
-        setAll(cookies) {
-          cookies.forEach(({ name, value, options }) =>
-            res.cookies.set(name, value, options)
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            res.cookies.set({ name, value, ...options })
           )
         },
       },
@@ -23,11 +23,11 @@ export async function middleware(req: NextRequest) {
   )
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
   // Protect dashboard routes
-  if (!session && req.nextUrl.pathname.startsWith("/dashboard")) {
+  if (!user && req.nextUrl.pathname.startsWith("/dashboard")) {
     return NextResponse.redirect(new URL("/auth", req.url))
   }
 

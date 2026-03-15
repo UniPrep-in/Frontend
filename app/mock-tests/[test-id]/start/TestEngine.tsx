@@ -32,13 +32,19 @@ export default function TestEngine({
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [visited, setVisited] = useState<Record<string, boolean>>({});
   const [timeLeft, setTimeLeft] = useState(durationMinutes * 60);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const currentQuestion = questions[currentIndex];
 
   async function handleSubmit() {
+    if (submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
     try {
       const res = await fetch("/api/submit-test", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -48,17 +54,25 @@ export default function TestEngine({
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        alert(data.error || "Failed to submit test");
+        const message = data?.error || "Failed to submit test";
+        setSubmitError(message);
+        if (data?.error === "Test already submitted") {
+          router.push(`/attempts/${attemptId}/result`);
+          return;
+        }
+        setSubmitting(false);
         return;
       }
 
+      // Keep full-screen loader visible until redirect
       router.push(`/attempts/${attemptId}/result`);
     } catch (error) {
       console.error("Submit failed:", error);
-      alert("Something went wrong while submitting.");
+      setSubmitError("Something went wrong while submitting. Please try again.");
+      setSubmitting(false);
     }
   }
 
@@ -154,8 +168,17 @@ export default function TestEngine({
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Main Section */}
-      <div className="flex-1 p-8">
+      {/* Submit full-screen loader */}
+      {submitting && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/95 backdrop-blur-sm">
+          <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
+          <p className="mt-4 text-gray-600 font-medium">Submitting your test…</p>
+          <p className="text-sm text-gray-500">Please wait</p>
+        </div>
+      )}
+
+      {/* Main Section - min-w-0 so long questions don't push right palette */}
+      <div className="flex-1 min-w-0 p-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-semibold">
             Question {currentIndex + 1} of {questions.length}
@@ -165,15 +188,17 @@ export default function TestEngine({
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow-sm">
-          <p className="text-lg mb-6">{currentQuestion.question_text}</p>
+        <div className="bg-white p-6 rounded-xl shadow-sm min-w-0 overflow-hidden">
+          <p className="text-lg mb-6 break-words">
+            {currentQuestion.question_text}
+          </p>
 
           <div className="space-y-4">
             {currentQuestion.options.map((option) => (
               <button
                 key={option.id}
                 onClick={() => selectOption(option.id)}
-                className={`w-full text-left border p-3 rounded-lg transition ${
+                className={`w-full text-left border p-3 rounded-lg transition break-words ${
                   answers[currentQuestion.id] === option.id
                     ? "bg-black text-white"
                     : "hover:bg-gray-100"
@@ -184,6 +209,9 @@ export default function TestEngine({
             ))}
           </div>
 
+          {submitError && (
+            <p className="mt-4 text-red-600 text-sm text-center">{submitError}</p>
+          )}
           <div className="flex justify-between mt-8">
             <button
               onClick={handlePrevious}
@@ -196,9 +224,10 @@ export default function TestEngine({
             {currentIndex === questions.length - 1 ? (
               <button
                 onClick={handleSubmit}
-                className="px-6 py-2 bg-black text-white rounded-lg"
+                disabled={submitting}
+                className="px-6 py-2 bg-black text-white rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Submit Test
+                {submitting ? "Submitting…" : "Submit Test"}
               </button>
             ) : (
               <button
