@@ -186,7 +186,7 @@ export default function TestEngine({
             Question {currentIndex + 1} of {questions.length}
           </h1>
 
-          <p className="text-xl mb-6 wrap-break-words whitespace-pre-wrap">
+          <p className="text-xl mb-2 wrap-break-words border-b pb-4 whitespace-pre-wrap">
             {currentQuestion.question_text}
           </p>
 
@@ -231,8 +231,9 @@ export default function TestEngine({
       <div className="w-92 sticky top-0 h-screen flex flex-col justify-between bg-white border-l p-6 pb-12 overflow-y-auto">
         <div>
           <div className="flex justify-between items-center mb-6">
-            <div className="text-red-600 font-bold text-lg">
-              Remaining Time {formatTime(timeLeft)}
+            <div className="text-black flex items-center gap-2 font-bold text-lg">
+              Remaining Time :
+              <span className="bg-cyan-500 text-white px-6 py-2 rounded-full">00:{formatTime(timeLeft)}</span>
             </div>
           </div>
 
@@ -245,14 +246,14 @@ export default function TestEngine({
                 <button
                   key={q.id}
                   onClick={() => setCurrentIndex(index)}
-                  className={`h-10 rounded text-sm font-medium ${
+                  className={`p-3 rounded-full text-lg font-medium ${
                     isCurrent
-                      ? "bg-black text-white"
+                      ? "bg-red-300 text-black border"
                       : isAnswered
-                        ? "bg-green-500 text-white"
+                        ? "bg-emerald-300 border text-black"
                         : visited[q.id]
-                          ? "bg-yellow-400"
-                          : "bg-gray-200"
+                          ? "bg-yellow-300 text-black border"
+                          : "bg-neutral-100 text-black border"
                   }`}
                 >
                   {index + 1}
@@ -266,9 +267,9 @@ export default function TestEngine({
           <button
             onClick={handlePrevious}
             disabled={currentIndex === 0}
-            className="px-6 py-2 border rounded-lg disabled:opacity-50"
+            className="px-6 py-2 bg-linear-to-br from-neutral-300 via-neutral-100 to-neutral-300 shadow-lg text-black border rounded-xl"
           >
-            Previous
+            {"<<"} Previous
           </button>
 
           {currentIndex === questions.length - 1 ? (
@@ -282,9 +283,9 @@ export default function TestEngine({
           ) : (
             <button
               onClick={handleNext}
-              className="px-6 py-2 bg-black text-white rounded-lg"
+              className="px-6 py-2 bg-linear-to-br from-neutral-300 via-neutral-100 to-neutral-300 shadow-lg text-black border rounded-xl"
             >
-              Next
+              Next {">>"}
             </button>
           )}
         </div>
