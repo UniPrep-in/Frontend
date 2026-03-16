@@ -37,14 +37,14 @@ export default function Faq() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 py-12 md:py-20 px-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-linear-to-b from-gray-50 to-white py-12 md:py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
           
           {/* Left Side - Image */}
           <div className="relative w-full aspect-square max-w-md mx-auto lg:max-w-none">
             <Image
-              src="/assets/faq.jpeg"
+              src="/assets/faq.png"
               alt="FAQ Illustration"
               fill
               className="object-cover rounded-2xl"
