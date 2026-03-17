@@ -111,7 +111,7 @@ export default function Navbar() {
         <nav className="flex items-center justify-between px-4 py-2.5 md:px-6">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <span className="hidden sm:block text-slate-900 text-sm md:text-base tracking-tight">
+            <span className="block text-slate-900 text-sm md:text-base tracking-tight">
               Uniprep.in
             </span>
           </Link>
@@ -139,7 +139,7 @@ export default function Navbar() {
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                   className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors duration-200"
                 >
-                  <div className="h-7 w-7 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                  <div className="h-7 w-7 rounded-full overflow-hidden bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shadow-sm">
                     {avatarUrl ? (
                       <Image
                         src={avatarUrl}
@@ -193,7 +193,7 @@ export default function Navbar() {
               >
                 <span className="relative z-10">Get Started</span>
                 <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-600"
+                  className="absolute inset-0 bg-linear-to-r from-blue-500 to-blue-600"
                   initial={{ x: "100%" }}
                   whileHover={{ x: 0 }}
                   transition={{ duration: 0.3 }}
