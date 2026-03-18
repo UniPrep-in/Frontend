@@ -4,11 +4,11 @@ import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
   try {
-    const { attemptId, answers } = await req.json();
+    const { attemptId, answers, analytics } = await req.json();
 
-    if (!attemptId || !answers) {
+    if (!attemptId || !answers || !analytics) {
       return NextResponse.json(
-        { error: "Missing attemptId or answers" },
+        { error: "Missing attemptId or answers or analytics" },
         { status: 400 }
       );
     }
@@ -97,6 +97,7 @@ export async function POST(req: Request) {
 
     let score = 0;
     const userAnswersToInsert: any[] = [];
+    const analyticsToInsert: any[] = [];
 
     for (const question of questions) {
       const selectedOptionId = answers[question.id];
@@ -121,6 +122,17 @@ export async function POST(req: Request) {
         selected_option_id: selectedOptionId,
         is_correct: isCorrect,
       });
+
+      const timeSpent = Math.max(0, analytics[question.id] ?? 0);
+
+      analyticsToInsert.push({
+        attempt_id: attemptId,
+        user_id: user.id,
+        test_id: attempt.test_id,
+        question_id: question.id,
+        time_spent: timeSpent,
+        is_correct: isCorrect,
+      });
     }
 
     // Insert user answers
@@ -134,6 +146,33 @@ export async function POST(req: Request) {
           { error: insertError.message || "Could not save answers" },
           { status: 500 }
         );
+      }
+    }
+
+    // Insert analytics (RAW) with upsert to prevent duplicates
+    if (analyticsToInsert.length > 0) {
+      const { error: analyticsError } = await supabase
+        .from("question_analytics")
+        .upsert(analyticsToInsert, {
+          onConflict: "attempt_id,question_id",
+        });
+
+      if (analyticsError) {
+        console.error("Analytics upsert error:", analyticsError);
+      }
+    }
+
+    // Update analytics summary (BATCH UPSERT - optimized)
+    if (analyticsToInsert.length > 0) {
+      const { error: summaryError } = await supabase.rpc(
+        "upsert_question_summary_batch",
+        {
+          analytics_data: analyticsToInsert,
+        }
+      );
+
+      if (summaryError) {
+        console.error("Summary batch upsert error:", summaryError);
       }
     }
 

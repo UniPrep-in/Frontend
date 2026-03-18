@@ -35,6 +35,8 @@ export default function TestEngine({
   const [timeLeft, setTimeLeft] = useState(durationMinutes * 60);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [questionTime, setQuestionTime] = useState<Record<string, number>>({});
+  const [startTime, setStartTime] = useState<number>(() => Date.now());
 
   const currentQuestion = questions[currentIndex];
 
@@ -43,11 +45,20 @@ export default function TestEngine({
     setSubmitting(true);
     setSubmitError(null);
     try {
+      const finalQ = questions[currentIndex];
+      const now = Date.now();
+      const timeSpent = Math.floor((now - startTime) / 1000);
+
+      const finalTime = {
+        ...questionTime,
+        [finalQ.id]: (questionTime[finalQ.id] || 0) + timeSpent,
+      };
+
       const res = await fetch("/api/submit-test", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ attemptId, answers }),
+        body: JSON.stringify({ attemptId, answers, analytics: finalTime }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -113,6 +124,20 @@ export default function TestEngine({
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
+  useEffect(() => {
+    localStorage.setItem(
+      `analytics-${attemptId}`,
+      JSON.stringify(questionTime)
+    );
+  }, [questionTime]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(`analytics-${attemptId}`);
+    if (saved) {
+      setQuestionTime(JSON.parse(saved));
+    }
+  }, []);
+
   /* ---------------- Answer Handling ---------------- */
   async function selectOption(optionId: string) {
     setAnswers((prev) => ({ ...prev, [currentQuestion.id]: optionId }));
@@ -128,7 +153,18 @@ export default function TestEngine({
   }
 
   function goToQuestion(index: number) {
-    setVisited((prev) => ({ ...prev, [questions[currentIndex].id]: true }));
+    const now = Date.now();
+    const currentQ = questions[currentIndex];
+
+    const timeSpent = Math.floor((now - startTime) / 1000);
+
+    setQuestionTime((prev) => ({
+      ...prev,
+      [currentQ.id]: (prev[currentQ.id] || 0) + timeSpent,
+    }));
+
+    setStartTime(now);
+    setVisited((prev) => ({ ...prev, [currentQ.id]: true }));
     setCurrentIndex(index);
   }
 
