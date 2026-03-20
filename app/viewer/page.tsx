@@ -1,15 +1,16 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, Suspense } from "react"
 
-export default function Viewer() {
+export const dynamic = "force-dynamic"
+
+function ViewerContent() {
   const searchParams = useSearchParams()
   const file = searchParams.get("file")
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
       if (
         e.key === "F12" ||
         (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key)) ||
@@ -21,7 +22,6 @@ export default function Viewer() {
 
     document.addEventListener("keydown", handleKeyDown)
 
-    // Detect devtools open (basic trick)
     const devtools = { open: false }
     const threshold = 160
 
@@ -52,7 +52,7 @@ export default function Viewer() {
   return (
     <main
       className="w-full h-screen bg-black"
-      onContextMenu={(e) => e.preventDefault()} // disable right click
+      onContextMenu={(e) => e.preventDefault()}
     >
       <iframe
         src={`${file}#toolbar=0&navpanes=0&scrollbar=0`}
@@ -61,4 +61,11 @@ export default function Viewer() {
     </main>
   )
 }
-"export const dynamic = \"force-dynamic\""
+
+export default function Viewer() {
+  return (
+    <Suspense fallback={<div className="p-6 text-white">Loading...</div>}>
+      <ViewerContent />
+    </Suspense>
+  )
+}
