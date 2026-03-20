@@ -13,15 +13,26 @@ type Note = {
   stream: string
 }
 
+const supabase = createClient()
+
 export default function Notes() {
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
 
-  const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
     const fetchNotes = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session) {
+        console.error("No active session")
+        setLoading(false)
+        return
+      }
+
       const { data, error } = await supabase.from("notes").select("*")
 
       if (error) {
@@ -61,7 +72,14 @@ export default function Notes() {
               </p>
 
               <button
-                onClick={() => router.push(`/viewer?file=${encodeURIComponent(note.pdf_url)}`)}
+                onClick={() => {
+                  // extract file path from signed URL
+                  const path = note.pdf_url
+                    .split("/object/sign/notes/")[1]
+                    ?.split("?")[0]
+
+                  router.push(`/viewer?file=${encodeURIComponent(path || "")}`)
+                }}
                 className="inline-block mt-3 text-blue-400 hover:underline"
               >
                 View PDF
