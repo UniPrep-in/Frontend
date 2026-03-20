@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import ComingSoon from "@/app/components/ui/comingSoon"
+import { useRouter } from "next/navigation"
 
 type Note = {
   id: string
@@ -17,6 +18,7 @@ export default function Notes() {
   const [loading, setLoading] = useState(true)
 
   const supabase = createClient()
+  const router = useRouter()
 
   useEffect(() => {
     const fetchNotes = async () => {
@@ -58,13 +60,12 @@ export default function Notes() {
                 {note.bucket} • {note.subject} • {note.stream}
               </p>
 
-              <a
-                href={note.pdf_url}
-                target="_blank"
+              <button
+                onClick={() => router.push(`/viewer?file=${encodeURIComponent(note.pdf_url)}`)}
                 className="inline-block mt-3 text-blue-400 hover:underline"
               >
                 View PDF
-              </a>
+              </button>
             </div>
           ))}
         </div>
