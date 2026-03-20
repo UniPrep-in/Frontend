@@ -61,3 +61,4 @@ export default function Viewer() {
     </main>
   )
 }
+"export const dynamic = \"force-dynamic\""
