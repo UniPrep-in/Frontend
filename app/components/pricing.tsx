@@ -270,7 +270,7 @@ export default function Pricing() {
                     <span className="line-through text-sm">{plan.strikeThrough}</span>
                     <span className="text-4xl">
                       {plan.pricing}
-                      <span className="font-light text-xl">/mo</span>
+                      <span className="font-light text-xl"></span>
                     </span>
                   </div>
                   <span className="text-lg px-6">{plan.name}</span>
@@ -316,7 +316,7 @@ export default function Pricing() {
                   <span className="line-through text-sm">{plan.strikeThrough}</span>
                   <span className="text-4xl">
                     {plan.pricing}
-                    <span className="font-light text-xl">/mo</span>
+                    <span className="font-light text-xl"></span>
                   </span>
                 </div>
                 <span className="text-lg px-6">{plan.name}</span>

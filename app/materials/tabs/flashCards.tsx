@@ -63,8 +63,9 @@ export default function FlashCards() {
         return;
       }
       setFlashcards(data || []);
-      setCurrentIndex(0);
-      setRandomFlashcard(data && data.length > 0 ? data[0] : null);
+      const randomIndex = data && data.length > 0 ? Math.floor(Math.random() * data.length) : 0;
+      setCurrentIndex(randomIndex);
+      setRandomFlashcard(data && data.length > 0 ? data[randomIndex] : null);
       setHasPrevPage(page > 0);
       setHasNextPage(data && data.length === PAGE_SIZE);
       setLoading(false);
