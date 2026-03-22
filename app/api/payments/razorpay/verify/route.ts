@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getPlanById } from "@/lib/plans";
-import { getRazorpayOrder, verifyRazorpaySignature } from "@/lib/razorpay";
+import {
+  getRazorpayOrder,
+  getRazorpayPayment,
+  verifyRazorpaySignature,
+} from "@/lib/razorpay";
+import { upsertProfilePlanStatus } from "@/lib/profile-plan-status";
 
 export const runtime = "nodejs";
 
@@ -55,10 +60,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const order = await getRazorpayOrder(orderId);
+    const [order, payment] = await Promise.all([
+      getRazorpayOrder(orderId),
+      getRazorpayPayment(paymentId),
+    ]);
     const expectedPlanName = `${plan.planType} - ${plan.name}`;
 
     if (
+      payment.order_id !== orderId ||
+      payment.amount !== plan.amountPaise ||
+      payment.currency !== "INR" ||
       order.amount !== plan.amountPaise ||
       order.currency !== "INR" ||
       order.notes?.user_id !== user.id ||
@@ -71,21 +82,21 @@ export async function POST(req: Request) {
       );
     }
 
-    const purchasedAt = new Date().toISOString();
+    const purchasedAt = payment.created_at
+      ? new Date(payment.created_at * 1000).toISOString()
+      : new Date().toISOString();
 
-    const { data: updatedProfile, error: profileError } = await supabase
-      .from("profiles")
-      .upsert({
-        id: user.id,
-        plan_id: plan.id,
-        payment_status: "verified",
-        purchased_at: purchasedAt,
-        razorpay_order_id: orderId,
-        razorpay_payment_id: paymentId,
-        updated_at: purchasedAt,
-      })
-      .select("id, plan_id, payment_status")
-      .single();
+    const { data: updatedProfile, error: profileError } = await upsertProfilePlanStatus(
+      supabase,
+      {
+        userId: user.id,
+        planId: plan.id,
+        paymentStatus: "verified",
+        purchasedAt,
+        razorpayOrderId: orderId,
+        razorpayPaymentId: paymentId,
+      },
+    );
 
     if (profileError) {
       return NextResponse.json(
