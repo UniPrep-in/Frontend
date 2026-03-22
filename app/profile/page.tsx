@@ -38,8 +38,10 @@ export default function ProfilePage() {
   useEffect(() => {
     async function fetchData() {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const user = session?.user;
 
       if (!user) {
         router.push("/auth");
@@ -52,11 +54,20 @@ export default function ProfilePage() {
         setMemberSince(date.toLocaleDateString(undefined, { year: "numeric", month: "long" }));
       }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+      const [profileRes, cardsRes] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single(),
+        supabase
+          .from("flash_cards")
+          .select("word, meaning, type, synonyms, antonyms, example")
+          .eq("user_id", user.id),
+      ]);
+
+      const profile = profileRes.data;
+      const cards = cardsRes.data;
 
       if (profile) {
         setFullName(user.user_metadata?.display_name || "");
@@ -71,25 +82,22 @@ export default function ProfilePage() {
         setAvatarUrl(avatar);
       }
 
-      const { data: cards } = await supabase
-        .from("flash_cards")
-        .select("word, meaning, type, synonyms, antonyms, example")
-        .eq("user_id", user.id);
-
       if (cards) setFlashcards(cards);
 
       setLoading(false);
     }
 
     fetchData();
-  }, []);
+  }, [supabase]);
 
   async function handleSave() {
     setLoading(true);
 
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    const user = session?.user;
 
     if (!user) return;
 
