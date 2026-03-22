@@ -16,9 +16,6 @@ export default async function StartTestPage({
   const testId = resolvedParams["test-id"];
   const attemptId = resolvedSearchParams?.attemptId;
 
-  console.log("TEST ID:", testId);
-  console.log("ATTEMPT ID:", attemptId);
-
   if (!attemptId) redirect("/mock-tests");
 
   const cookieStore = await cookies();
@@ -37,8 +34,10 @@ export default async function StartTestPage({
   );
 
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const user = session?.user;
 
   if (!user) redirect("/auth");
 
@@ -51,43 +50,39 @@ export default async function StartTestPage({
     .eq("test_id", testId)
     .maybeSingle();
 
-  console.log("ATTEMPT DATA:", attempt);
-  console.log("ATTEMPT ERROR:", attemptError);
-
   if (!attempt) redirect("/mock-tests");
 
-  // Fetch test details (for duration)
-  const { data: test } = await supabase
-    .from("tests")
-    .select("duration_minutes")
-    .eq("id", testId)
-    .single();
+  const [testRes, questionsRes] = await Promise.all([
+    supabase
+      .from("tests")
+      .select("duration_minutes")
+      .eq("id", testId)
+      .single(),
+    supabase
+      .from("questions")
+      .select(
+        `
+      id,
+      question_text,
+      question_order,
+      question_image,
+      options (
+        id,
+        option_text
+      )
+    `
+      )
+      .eq("test_id", testId)
+      .order("question_order", { ascending: true }),
+  ]);
+
+  const test = testRes.data;
+  const questions = questionsRes.data;
+  const questionsError = questionsRes.error;
 
   if (!test) redirect("/mock-tests");
 
-  // Fetch questions
-  const { data: questions, error: questionsError } = await supabase
-    .from("questions")
-    .select(
-      `
-    id,
-    question_text,
-    question_order,
-    question_image,
-    options (
-      id,
-      option_text
-    )
-  `
-    )
-    .eq("test_id", testId)
-    .order("question_order", { ascending: true });
-
-  console.log("QUESTIONS:", questions);
-  console.log("QUESTIONS ERROR:", questionsError);
-
   if (!questions || questions.length === 0) {
-    console.log("NO QUESTIONS FOUND FOR TEST:", testId);
     redirect("/mock-tests");
   }
 

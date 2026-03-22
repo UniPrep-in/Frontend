@@ -37,10 +37,26 @@ export default function TestEngine({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [questionTime, setQuestionTime] = useState<Record<string, number>>({});
+  const [questionTime, setQuestionTime] = useState<Record<string, number>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const saved = localStorage.getItem(`analytics-${attemptId}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const [startTime, setStartTime] = useState<number>(() => Date.now());
 
   const currentQuestion = questions[currentIndex];
+
+  useEffect(() => {
+    const nextQ = questions[currentIndex + 1];
+    if (nextQ?.question_image) {
+      const img = new Image();
+      img.src = nextQ.question_image;
+    }
+  }, [currentIndex, questions]);
 
   async function handleSubmit() {
     if (submitting) return;
@@ -127,24 +143,22 @@ export default function TestEngine({
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(
-      `analytics-${attemptId}`,
-      JSON.stringify(questionTime)
-    );
+    const timeout = setTimeout(() => {
+      localStorage.setItem(
+        `analytics-${attemptId}`,
+        JSON.stringify(questionTime)
+      );
+    }, 500);
+
+    return () => clearTimeout(timeout);
   }, [questionTime]);
 
-  useEffect(() => {
-    const saved = localStorage.getItem(`analytics-${attemptId}`);
-    if (saved) {
-      setQuestionTime(JSON.parse(saved));
-    }
-  }, []);
 
   /* ---------------- Answer Handling ---------------- */
   async function selectOption(optionId: string) {
     setAnswers((prev) => ({ ...prev, [currentQuestion.id]: optionId }));
     try {
-      await fetch("/api/save-answer", {
+      fetch("/api/save-answer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ attemptId, questionId: currentQuestion.id, optionId }),
@@ -210,7 +224,7 @@ export default function TestEngine({
   /* ---------------- UI ---------------- */
 
   return (
-    <div className="flex bg-gray-50 min-h-screen">
+    <div className="flex flex-col md:flex-row bg-gray-50 min-h-screen">
       {/* Submit full-screen loader */}
       {submitting && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/95 backdrop-blur-sm">
@@ -223,16 +237,7 @@ export default function TestEngine({
       {/* Main Section — grows naturally, page scrolls */}
       <div className="flex-1 min-w-0 relative z-10">
         {/* Watermark Overlay (only on exam section) */}
-        <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center">
-          <div
-            className="text-black opacity-10 text-4xl font-bold select-none"
-            style={{
-              transform: "rotate(-45deg)",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {attemptId}
-          </div>
+        <div className="overflow-clip absolute inset-0 pointer-events-none z-0 flex items-center justify-center">
           <div
             className="text-black opacity-10 text-4xl font-bold select-none"
             style={{
@@ -244,7 +249,7 @@ export default function TestEngine({
           </div>
           
         </div>
-        <div className="bg-white p-12 rounded-xl shadow-sm">
+        <div className="bg-white p-4 md:p-12 rounded-xl shadow-sm">
           <h1 className="text-lg font-semibold border-b pb-2 mb-6">
             Question {currentIndex + 1} of {questions.length}
           </h1>
@@ -260,6 +265,8 @@ export default function TestEngine({
                 <img
                   src={currentQuestion.question_image}
                   alt="Question illustration"
+                  loading="lazy"
+                  decoding="async"
                   className="max-h-96 w-auto object-contain"
                 />
               </div>
@@ -289,7 +296,7 @@ export default function TestEngine({
             })}
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3">
+          <div className="mt-6 flex flex-col sm:flex-row flex-wrap gap-3">
             {currentIndex === questions.length - 1 ? (
               <button
                 onClick={() => setShowSubmitModal(true)}
@@ -348,7 +355,7 @@ export default function TestEngine({
       />
 
       {/* Right Palette — sticks to viewport while page scrolls */}
-      <div className="w-92 sticky top-0 h-screen flex flex-col justify-between bg-white border-l p-6 pb-12 overflow-y-auto relative z-10">
+      <div className="w-full md:w-92 md:sticky md:top-0 md:h-screen flex flex-col justify-between bg-white md:border-l border-b p-4 md:p-6 pb-6 md:pb-12 overflow-y-auto relative z-10 order-first md:order-last">
         <div>
           <div className="flex justify-between items-center mb-6">
             <div className="text-black flex items-center gap-2 font-bold text-lg">
@@ -359,7 +366,7 @@ export default function TestEngine({
             </div>
           </div>
 
-          <div className="grid grid-cols-5 gap-2">
+          <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 gap-2">
             {questions.map((q, index) => {
               const isAnswered = !!answers[q.id];
               const isMarked = !!markedReview[q.id];
