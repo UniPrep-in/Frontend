@@ -13,6 +13,19 @@ type RazorpayOrder = {
   };
 };
 
+type RazorpayPaymentEntity = {
+  id: string;
+  order_id: string;
+  amount: number;
+  currency: string;
+  created_at?: number;
+  notes?: {
+    user_id?: string;
+    plan_id?: string;
+    plan_name?: string;
+  };
+};
+
 function getRazorpayCredentials() {
   const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
   const keySecret = process.env.RAZORPAY_KEY_SECRET;
@@ -49,6 +62,16 @@ async function parseRazorpayResponse(response: Response) {
 
 export function getRazorpayKeyId() {
   return getRazorpayCredentials().keyId;
+}
+
+function getRazorpayWebhookSecret() {
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    throw new Error("Razorpay webhook secret is not configured");
+  }
+
+  return webhookSecret;
 }
 
 export async function createRazorpayOrder(input: {
@@ -106,6 +129,25 @@ export async function getRazorpayOrder(orderId: string) {
   return payload;
 }
 
+export async function getRazorpayPayment(paymentId: string) {
+  const response = await fetch(`${RAZORPAY_API_BASE}/payments/${paymentId}`, {
+    method: "GET",
+    headers: {
+      Authorization: getAuthHeader(),
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+  });
+
+  const payload = (await parseRazorpayResponse(response)) as RazorpayPaymentEntity | null;
+
+  if (!payload?.id) {
+    throw new Error("Razorpay payment was not found");
+  }
+
+  return payload;
+}
+
 export function verifyRazorpaySignature(input: {
   orderId: string;
   paymentId: string;
@@ -115,6 +157,26 @@ export function verifyRazorpaySignature(input: {
 
   const expectedSignature = createHmac("sha256", keySecret)
     .update(`${input.orderId}|${input.paymentId}`)
+    .digest("hex");
+
+  const providedBuffer = Buffer.from(input.signature);
+  const expectedBuffer = Buffer.from(expectedSignature);
+
+  if (providedBuffer.length !== expectedBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(providedBuffer, expectedBuffer);
+}
+
+export function verifyRazorpayWebhookSignature(input: {
+  body: string;
+  signature: string;
+}) {
+  const webhookSecret = getRazorpayWebhookSecret();
+
+  const expectedSignature = createHmac("sha256", webhookSecret)
+    .update(input.body)
     .digest("hex");
 
   const providedBuffer = Buffer.from(input.signature);

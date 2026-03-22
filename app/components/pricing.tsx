@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { FaCheck } from "react-icons/fa6";
 import { createClient } from "@/lib/supabase/client";
 import { PLAN_CATALOG, type PlanDefinition, type PlanId } from "@/lib/plans";
+import { X } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
 
 type CheckoutOrderResponse = {
   orderId: string;
@@ -70,6 +72,7 @@ function loadRazorpayCheckoutScript() {
 export default function Pricing() {
   const router = useRouter();
   const supabase = createClient();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loadingPlanId, setLoadingPlanId] = useState<PlanId | null>(null);
   const [profilePhone, setProfilePhone] = useState("");
   const [activePlanId, setActivePlanId] = useState<PlanId | null>(null);
@@ -84,6 +87,8 @@ export default function Pricing() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+
+      setCurrentUser(user ?? null);
 
       if (!user) {
         setProfilePhone("");
@@ -106,6 +111,24 @@ export default function Pricing() {
     void loadPurchaseState();
   }, [supabase]);
 
+  useEffect(() => {
+    void loadRazorpayCheckoutScript();
+  }, []);
+
+  useEffect(() => {
+    if (!feedback) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setFeedback(null);
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [feedback]);
+
   const isPlanPurchased = (planId: PlanId) =>
     paymentStatus === "verified" && activePlanId === planId;
 
@@ -118,50 +141,54 @@ export default function Pricing() {
     setLoadingPlanId(plan.id);
 
     try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
+      if (!currentUser) {
         setLoadingPlanId(null);
         router.push("/auth");
         return;
       }
 
-      const orderResponse = await fetch("/api/payments/razorpay/create-order", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ planId: plan.id }),
-      });
+      const [scriptLoaded, orderResult] = await Promise.all([
+        loadRazorpayCheckoutScript(),
+        fetch("/api/payments/razorpay/create-order", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ planId: plan.id }),
+        }).then(async (response) => {
+          const payload = (await response.json().catch(() => null)) as
+            | (CheckoutOrderResponse & { error?: string })
+            | { error?: string }
+            | null;
 
-      const orderPayload = (await orderResponse.json().catch(() => null)) as
-        | (CheckoutOrderResponse & { error?: string })
-        | { error?: string }
-        | null;
-
-      if (!orderResponse.ok || !orderPayload || !("orderId" in orderPayload)) {
-        throw new Error(orderPayload?.error || "Unable to initialize payment");
-      }
-
-      const scriptLoaded = await loadRazorpayCheckoutScript();
+          return {
+            ok: response.ok,
+            payload,
+          };
+        }),
+      ]);
 
       if (!scriptLoaded || !window.Razorpay) {
         throw new Error("Unable to load Razorpay checkout");
       }
+
+      if (!orderResult.ok || !orderResult.payload || !("orderId" in orderResult.payload)) {
+        throw new Error(orderResult.payload?.error || "Unable to initialize payment");
+      }
+
+      const orderPayload = orderResult.payload;
 
       const checkout = new window.Razorpay({
         key: orderPayload.keyId,
         amount: orderPayload.amount,
         currency: orderPayload.currency,
         name: "UniPrep",
+        image: `${window.location.origin}/logo.svg`,
         description: orderPayload.planName,
         order_id: orderPayload.orderId,
         prefill: {
-          name: user.user_metadata?.display_name || "",
-          email: user.email || "",
+          name: currentUser.user_metadata?.display_name || "",
+          email: currentUser.email || "",
           contact: profilePhone,
         },
         notes: {
@@ -234,7 +261,33 @@ export default function Pricing() {
   };
 
   return (
-    <main id="pricing" className="max-w-6xl py-12 mx-auto px-4">
+    <main className="max-w-6xl py-12 mx-auto px-4">
+      {feedback ? (
+        <div className="fixed right-4 top-24 z-50 w-[calc(100%-2rem)] max-w-sm">
+          <div
+            className={`rounded-2xl border shadow-lg backdrop-blur-sm px-4 py-3 ${
+              feedback.type === "success"
+                ? "border-emerald-200 bg-emerald-50/95 text-emerald-800"
+                : "border-rose-200 bg-rose-50/95 text-rose-800"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <p className="text-sm font-medium">{feedback.message}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFeedback(null)}
+                className="rounded-full p-1 transition-colors hover:bg-black/5"
+                aria-label="Dismiss notification"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-2 justify-center items-center">
         <span className="text-3xl md:text-4xl font-semibold text-center">
           Choose Your Plan
@@ -244,18 +297,6 @@ export default function Pricing() {
           your college life.
         </h1>
       </div>
-
-      {feedback ? (
-        <div
-          className={`mx-auto mt-8 max-w-2xl rounded-2xl border px-5 py-4 text-sm ${
-            feedback.type === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-rose-200 bg-rose-50 text-rose-700"
-          }`}
-        >
-          {feedback.message}
-        </div>
-      ) : null}
 
       <div className="flex flex-col md:flex-row md:flex-wrap gap-6 justify-center py-12 px-4">
         {PLAN_CATALOG.map((plan) => (
