@@ -37,9 +37,26 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/auth", req.url))
   }
 
+  if (!user && req.nextUrl.pathname.startsWith("/materials")) {
+    return NextResponse.redirect(new URL("/auth", req.url))
+  }
+
+  if (!user && req.nextUrl.pathname.startsWith("/mock-tests")) {
+    return NextResponse.redirect(new URL("/auth", req.url))
+  }
+
+  if (!user && req.nextUrl.pathname.startsWith("/lectures")) {
+    return NextResponse.redirect(new URL("/auth", req.url))
+  }
+
   return res
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: [
+    "/profile/:path*",
+    "/materials/:path*",
+    "/mock-tests/:path*",
+    "/lectures/:path*",
+  ],
 }
