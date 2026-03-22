@@ -1,0 +1,115 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import LectureChat from "./chat";
+
+type Lecture = {
+  id: string;
+  title: string;
+  description: string;
+  subject: string;
+  stream: string;
+  youtube_url: string;
+  thumbnail_url: string | null;
+  is_live: boolean;
+};
+
+export default function LecturesView({ lectureId }: { lectureId: string }) {
+  const supabase = createClient();
+
+  const [liveLecture, setLiveLecture] = useState<Lecture | null>(null);
+  const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
+  const [user, setUser] = useState<{ id: string; name: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLecture = async () => {
+      setLoading(true);
+
+      const { data, error } = await supabase
+        .from("live_lectures")
+        .select("*")
+        .eq("id", lectureId)
+        .single();
+
+      if (!error) {
+        setLiveLecture(data || null);
+      }
+
+      setLoading(false);
+    };
+
+    fetchLecture();
+  }, [lectureId]);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) {
+        setUser({
+          id: data.user.id,
+          name: data.user.user_metadata?.name || "User",
+        });
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  const getEmbedUrl = (url: string) => {
+    try {
+      const videoId = new URL(url).searchParams.get("v");
+      return `https://www.youtube.com/embed/${videoId}`;
+    } catch {
+      return url;
+    }
+  };
+
+  const embedUrl = liveLecture
+    ? getEmbedUrl(liveLecture.youtube_url)
+    : "";
+
+  return (
+    <div className="p-4 md:p-8 space-y-8">
+      {/* LIVE SECTION */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Live Lecture</h2>
+
+        {loading ? (
+          <p className="text-gray-500">Loading lecture...</p>
+        ) : liveLecture ? (
+          <div className="flex flex-col md:flex-row gap-6">
+            
+            {/* VIDEO */}
+            <div className="flex-1 bg-black rounded-lg overflow-hidden">
+              <iframe
+                src={embedUrl}
+                title={liveLecture.title}
+                loading="lazy"
+                className="w-full h-[220px] md:h-[500px]"
+                allowFullScreen
+              />
+              <div className="p-4 bg-white">
+                <h3 className="font-semibold">{liveLecture.title}</h3>
+                <p className="text-sm text-gray-500">
+                  {liveLecture.description}
+                </p>
+              </div>
+            </div>
+
+            {/* CHAT */}
+            <div className="w-full md:w-80">
+              {user && (
+                <LectureChat lectureId={liveLecture.id} user={user} />
+              )}
+            </div>
+
+          </div>
+        ) : (
+          <p className="text-gray-500">No live lecture currently</p>
+        )}
+      </div>
+    </div>
+  );
+}
