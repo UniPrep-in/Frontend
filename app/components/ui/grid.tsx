@@ -51,20 +51,27 @@ export default function Grid() {
               "/colleges/college1.webp",
               "/colleges/college2.jpeg",
               "/colleges/college3.jpeg",
-            ].map((src, i) => (
+              "/colleges/gargi_college.jpg",
+              "/colleges/du_clock_tower.jpg",
+              "/colleges/hindu_college.jpg",
+              "/colleges/du_south_campus.jpg",
+              "/colleges/college_building.jpg",
+              "/colleges/miranda_house.jpg",
+            ].map((src, i, arr) => (
               <motion.div
                 key={src}
                 className="absolute inset-0"
                 initial={{ opacity: 0, scale: 1 }}
                 animate={{
-                  opacity: [0, 1, 1, 0],
-                  scale: [1, 1.12, 1.18, 1.2],
+                  opacity: [0, 1, 1, 0, 0],
+                  scale: [1, 1.05, 1.1, 1.15, 1.15],
                 }}
                 transition={{
-                  duration: 18,
+                  duration: arr.length * 6,
                   repeat: Infinity,
                   delay: i * 6,
                   ease: "linear",
+                  times: [0, 2 / (arr.length * 6), 6 / (arr.length * 6), 8 / (arr.length * 6), 1],
                 }}
               >
                 <Image
