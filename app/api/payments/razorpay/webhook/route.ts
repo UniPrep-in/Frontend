@@ -5,8 +5,14 @@ import {
   getRazorpayPayment,
   verifyRazorpayWebhookSignature,
 } from "@/lib/razorpay";
-import { upsertProfilePlanStatus } from "@/lib/profile-plan-status";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  getPlanCheckoutAmountPaise,
+  isValidStream,
+  markSubscriptionFailed,
+  markSubscriptionVerified,
+  normalizeIncludeGat,
+} from "@/lib/subscriptions";
 
 export const runtime = "nodejs";
 
@@ -76,26 +82,43 @@ export async function POST(req: Request) {
     const userId = order.notes?.user_id?.trim() || "";
     const planId = order.notes?.plan_id?.trim() || "";
     const expectedPlanName = order.notes?.plan_name?.trim() || "";
+    const stream = order.notes?.stream?.trim().toLowerCase() || "";
+    const rawIncludeGat = order.notes?.include_gat?.trim() || "";
     const plan = getPlanById(planId);
+    const includeGat = plan
+      ? normalizeIncludeGat(plan.id, rawIncludeGat === "true")
+      : false;
 
-    if (!userId || !plan) {
+    if (!userId || !plan || !isValidStream(stream)) {
       return NextResponse.json(
         { error: "Webhook metadata is incomplete" },
         { status: 400 },
       );
     }
 
+    const expectedAmount = getPlanCheckoutAmountPaise(plan.id, includeGat);
+
     if (
       payment.order_id !== orderId ||
-      payment.amount !== plan.amountPaise ||
+      payment.amount !== expectedAmount ||
       payment.currency !== "INR" ||
-      order.amount !== plan.amountPaise ||
+      order.amount !== expectedAmount ||
       order.currency !== "INR" ||
       order.notes?.user_id !== userId ||
       order.notes?.plan_id !== plan.id ||
       order.notes?.plan_name !== `${plan.planType} - ${plan.name}` ||
-      expectedPlanName !== `${plan.planType} - ${plan.name}`
+      expectedPlanName !== `${plan.planType} - ${plan.name}` ||
+      order.notes?.stream !== stream ||
+      order.notes?.include_gat !== String(includeGat)
     ) {
+      const adminSupabase = createAdminClient();
+      await markSubscriptionFailed(adminSupabase, {
+        userId,
+        orderId,
+        paymentId,
+        failureReason: "Webhook payment details did not match the selected plan",
+      });
+
       return NextResponse.json(
         { error: "Webhook payment details do not match the selected plan" },
         { status: 400 },
@@ -103,22 +126,18 @@ export async function POST(req: Request) {
     }
 
     const adminSupabase = createAdminClient();
-    const purchasedAt = payment.created_at
-      ? new Date(payment.created_at * 1000).toISOString()
-      : new Date().toISOString();
+    const { error: subscriptionError } = await markSubscriptionVerified(
+      adminSupabase,
+      {
+        userId,
+        orderId,
+        paymentId,
+      },
+    );
 
-    const { error: profileError } = await upsertProfilePlanStatus(adminSupabase, {
-      userId,
-      planId: plan.id,
-      paymentStatus: "verified",
-      purchasedAt,
-      razorpayOrderId: orderId,
-      razorpayPaymentId: paymentId,
-    });
-
-    if (profileError) {
+    if (subscriptionError) {
       return NextResponse.json(
-        { error: profileError.message },
+        { error: subscriptionError.message },
         { status: 500 },
       );
     }

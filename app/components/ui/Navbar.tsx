@@ -1,82 +1,62 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Menu, X, ChevronDown, LogOut, User as UserIcon } from "lucide-react";
+import { Menu, X, ChevronDown, LogOut } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import type { User } from "@supabase/supabase-js";
 import { IoMdPerson } from "react-icons/io";
+import { useAuth } from "@/providers/AuthProvider";
+
 export default function Navbar() {
   const supabase = createClient();
-  const [user, setUser] = useState<User | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { user, profile, isAuthLoading } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
- const router = useRouter();
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
   useEffect(() => {
-    const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      setUser(user);
-
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("avatar_url")
-          .eq("id", user.id)
-          .single();
-
-        if (profile?.avatar_url) {
-          setAvatarUrl(profile.avatar_url);
-        }
-      }
-    };
-
-    getUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("avatar_url")
-          .eq("id", currentUser.id)
-          .single();
-
-        if (profile?.avatar_url) {
-          setAvatarUrl(profile.avatar_url);
-        }
-      } else {
-        setAvatarUrl(null);
-      }
-    });
-
-    // Scroll detection for glassmorphism effect
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
 
     window.addEventListener("scroll", handleScroll);
-    
+
     return () => {
-      subscription.unsubscribe();
       window.removeEventListener("scroll", handleScroll);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isProfileOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsProfileOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isProfileOpen]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setIsProfileOpen(false);
   };
+
+  const avatarUrl = profile?.avatar_url ?? null;
 
   const navlinks = [
     { title: "Home", link: "/" },
@@ -132,8 +112,10 @@ export default function Navbar() {
 
           {/* User Actions */}
           <div className="flex items-center gap-2">
-            {user ? (
-              <div className="relative">
+            {isAuthLoading ? (
+              <div className="h-9 w-24 rounded-full bg-slate-100" />
+            ) : user ? (
+              <div ref={profileMenuRef} className="relative">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}

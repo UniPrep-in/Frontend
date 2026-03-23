@@ -2,7 +2,33 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 
+const protectedPrefixes = ["/profile", "/materials", "/mock-tests", "/lectures"]
+
+function isProtectedPath(pathname: string) {
+  return protectedPrefixes.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  )
+}
+
+function hasSupabaseAuthCookie(req: NextRequest) {
+  return req.cookies
+    .getAll()
+    .some(
+      ({ name }) => name.startsWith("sb-") && name.includes("-auth-token")
+    )
+}
+
 export async function middleware(req: NextRequest) {
+  if (!isProtectedPath(req.nextUrl.pathname)) {
+    return NextResponse.next()
+  }
+
+  const redirectToAuth = () => NextResponse.redirect(new URL("/auth", req.url))
+
+  if (!hasSupabaseAuthCookie(req)) {
+    return redirectToAuth()
+  }
+
   const res = NextResponse.next()
 
   const supabase = createServerClient(
@@ -32,21 +58,8 @@ export async function middleware(req: NextRequest) {
 
   const user = session?.user
 
-  // Protect dashboard routes
-  if (!user && req.nextUrl.pathname.startsWith("/profile")) {
-    return NextResponse.redirect(new URL("/auth", req.url))
-  }
-
-  if (!user && req.nextUrl.pathname.startsWith("/materials")) {
-    return NextResponse.redirect(new URL("/auth", req.url))
-  }
-
-  if (!user && req.nextUrl.pathname.startsWith("/mock-tests")) {
-    return NextResponse.redirect(new URL("/auth", req.url))
-  }
-
-  if (!user && req.nextUrl.pathname.startsWith("/lectures")) {
-    return NextResponse.redirect(new URL("/auth", req.url))
+  if (!user) {
+    return redirectToAuth()
   }
 
   return res

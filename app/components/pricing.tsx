@@ -3,10 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FaCheck } from "react-icons/fa6";
-import { createClient } from "@/lib/supabase/client";
 import { PLAN_CATALOG, type PlanDefinition, type PlanId } from "@/lib/plans";
 import { X } from "lucide-react";
-import type { User } from "@supabase/supabase-js";
+import { useAuth } from "@/providers/AuthProvider";
+import {
+  STREAM_OPTIONS,
+  type StreamKey,
+  getDisplayPriceRupees,
+  getPlanCheckoutAmountPaise,
+  isGatIncludedInPlan,
+  normalizeIncludeGat,
+} from "@/lib/subscriptions";
 
 type CheckoutOrderResponse = {
   orderId: string;
@@ -15,6 +22,8 @@ type CheckoutOrderResponse = {
   keyId: string;
   planId: PlanId;
   planName: string;
+  stream: StreamKey;
+  includeGat: boolean;
 };
 
 type RazorpaySuccessResponse = {
@@ -30,6 +39,11 @@ type VerifyPaymentResponse = {
   paymentStatus?: string;
 };
 
+type SubscriptionStatusResponse = {
+  planId?: PlanId | null;
+  paymentStatus?: string | null;
+};
+
 type RazorpayInstance = {
   open: () => void;
 };
@@ -43,6 +57,7 @@ declare global {
 }
 
 let razorpayScriptPromise: Promise<boolean> | null = null;
+const RUPEE_SYMBOL = "\u20B9";
 
 function loadRazorpayCheckoutScript() {
   if (typeof window === "undefined") {
@@ -71,49 +86,17 @@ function loadRazorpayCheckoutScript() {
 
 export default function Pricing() {
   const router = useRouter();
-  const supabase = createClient();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { user, profile, isAuthLoading } = useAuth();
   const [loadingPlanId, setLoadingPlanId] = useState<PlanId | null>(null);
-  const [profilePhone, setProfilePhone] = useState("");
-  const [activePlanId, setActivePlanId] = useState<PlanId | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<PlanDefinition | null>(null);
+  const [selectedStream, setSelectedStream] = useState<StreamKey | null>(null);
+  const [includeGat, setIncludeGat] = useState(false);
+  const [purchasedPlanId, setPurchasedPlanId] = useState<PlanId | null>(null);
+  const [purchasedPaymentStatus, setPurchasedPaymentStatus] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
-
-  useEffect(() => {
-    const loadPurchaseState = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      setCurrentUser(user ?? null);
-
-      if (!user) {
-        setProfilePhone("");
-        setActivePlanId(null);
-        setPaymentStatus(null);
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("phone, plan_id, payment_status")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      setProfilePhone(profile?.phone || "");
-      setActivePlanId((profile?.plan_id as PlanId | null) || null);
-      setPaymentStatus(profile?.payment_status || null);
-    };
-
-    void loadPurchaseState();
-  }, [supabase]);
-
-  useEffect(() => {
-    void loadRazorpayCheckoutScript();
-  }, []);
 
   useEffect(() => {
     if (!feedback) {
@@ -129,54 +112,138 @@ export default function Pricing() {
     };
   }, [feedback]);
 
+  useEffect(() => {
+    if (!user) {
+      setPurchasedPlanId(null);
+      setPurchasedPaymentStatus(null);
+      return;
+    }
+
+    const loadSubscriptionStatus = async () => {
+      const response = await fetch("/api/payments/subscription-status", {
+        cache: "no-store",
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | SubscriptionStatusResponse
+        | null;
+
+      if (!response.ok || !payload) {
+        return;
+      }
+
+      setPurchasedPlanId((payload.planId as PlanId | null) || null);
+      setPurchasedPaymentStatus(payload.paymentStatus || null);
+    };
+
+    void loadSubscriptionStatus();
+  }, [user]);
+
+  const currentUser = user;
+  const profilePhone = profile?.phone || "";
+  const activePlanId = purchasedPlanId || (profile?.plan_id as PlanId | null) || null;
+  const paymentStatus = purchasedPaymentStatus || profile?.payment_status || null;
+  const isSelectionOpen = selectedPlan !== null;
+  const normalizedIncludeGat = selectedPlan
+    ? normalizeIncludeGat(selectedPlan.id, includeGat)
+    : false;
+  const selectedAmountPaise = selectedPlan && selectedStream
+    ? getPlanCheckoutAmountPaise(selectedPlan.id, normalizedIncludeGat)
+    : 0;
+
+  const getDisplayedPlanPrice = (planId: PlanId) =>
+    getDisplayPriceRupees(
+      getPlanCheckoutAmountPaise(planId, isGatIncludedInPlan(planId)),
+    );
+
+  const getDisplayedStrikePrice = (plan: PlanDefinition) =>
+    plan.id === "basic" ? "₹999" : plan.strikeThrough.replace("Rs. ", "₹");
+
+  const getPlanCardSubjects = (planId: PlanId) =>
+    planId === "basic" ? "Domain + English" : "Domain + English + GAT";
+
+  const formatStrikePrice = (plan: PlanDefinition) =>
+    getDisplayedStrikePrice(plan).replace("â‚¹", `${RUPEE_SYMBOL} `);
+
   const isPlanPurchased = (planId: PlanId) =>
     paymentStatus === "verified" && activePlanId === planId;
 
-  const handlePurchase = async (plan: PlanDefinition) => {
+  const closeSelectionBox = () => {
+    setSelectedPlan(null);
+    setSelectedStream(null);
+    setIncludeGat(false);
+  };
+
+  const handlePurchaseClick = (plan: PlanDefinition) => {
     if (isPlanPurchased(plan.id)) {
       return;
     }
 
     setFeedback(null);
-    setLoadingPlanId(plan.id);
+
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!currentUser) {
+      router.push("/auth");
+      return;
+    }
+
+    setSelectedPlan(plan);
+    setSelectedStream(null);
+    setIncludeGat(false);
+  };
+
+  const handleCheckout = async () => {
+    if (!selectedPlan || !selectedStream) {
+      return;
+    }
+
+    setFeedback(null);
 
     try {
       if (!currentUser) {
-        setLoadingPlanId(null);
         router.push("/auth");
         return;
       }
 
-      const [scriptLoaded, orderResult] = await Promise.all([
-        loadRazorpayCheckoutScript(),
-        fetch("/api/payments/razorpay/create-order", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ planId: plan.id }),
-        }).then(async (response) => {
-          const payload = (await response.json().catch(() => null)) as
-            | (CheckoutOrderResponse & { error?: string })
-            | { error?: string }
-            | null;
+      setLoadingPlanId(selectedPlan.id);
 
-          return {
-            ok: response.ok,
-            payload,
-          };
-        }),
-      ]);
+      const scriptLoaded = await loadRazorpayCheckoutScript();
 
       if (!scriptLoaded || !window.Razorpay) {
         throw new Error("Unable to load Razorpay checkout");
       }
+
+      const orderResult = await fetch("/api/payments/razorpay/create-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          planId: selectedPlan.id,
+          stream: selectedStream,
+          includeGat: normalizedIncludeGat,
+        }),
+      }).then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as
+          | (CheckoutOrderResponse & { error?: string })
+          | { error?: string }
+          | null;
+
+        return {
+          ok: response.ok,
+          payload,
+        };
+      });
 
       if (!orderResult.ok || !orderResult.payload || !("orderId" in orderResult.payload)) {
         throw new Error(orderResult.payload?.error || "Unable to initialize payment");
       }
 
       const orderPayload = orderResult.payload;
+      closeSelectionBox();
 
       const checkout = new window.Razorpay({
         key: orderPayload.keyId,
@@ -194,6 +261,8 @@ export default function Pricing() {
         notes: {
           plan_id: orderPayload.planId,
           plan_name: orderPayload.planName,
+          stream: orderPayload.stream,
+          include_gat: String(orderPayload.includeGat),
         },
         theme: {
           color: "#2563eb",
@@ -211,7 +280,9 @@ export default function Pricing() {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                planId: plan.id,
+                planId: selectedPlan.id,
+                stream: selectedStream,
+                includeGat: normalizedIncludeGat,
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
@@ -226,12 +297,12 @@ export default function Pricing() {
               throw new Error(verifyPayload?.error || "Payment verification failed");
             }
 
-            setActivePlanId((verifyPayload.planId as PlanId | undefined) || plan.id);
-            setPaymentStatus(verifyPayload.paymentStatus || "verified");
+            setPurchasedPlanId((verifyPayload.planId as PlanId | undefined) || selectedPlan.id);
+            setPurchasedPaymentStatus(verifyPayload.paymentStatus || "verified");
 
             setFeedback({
               type: "success",
-              message: `${plan.planType} plan activated successfully.`,
+              message: `${selectedPlan.planType} plan activated successfully.`,
             });
           } catch (error) {
             const message =
@@ -307,10 +378,12 @@ export default function Pricing() {
                   <span className="text-xs bg-emerald-400 mt-8 px-6 uppercase py-2 rounded-full border">
                     {plan.planType}
                   </span>
-                  <div className="flex flex-col px-6 py-2">
-                    <span className="line-through text-sm">{plan.strikeThrough}</span>
+                  <div className="flex flex-col px-6 py-1 leading-none">
+                    <span className="line-through text-sm text-neutral-500">
+                      {formatStrikePrice(plan)}
+                    </span>
                     <span className="text-4xl">
-                      {plan.pricing}
+                      {`₹ ${getDisplayedPlanPrice(plan.id)}`}
                       <span className="font-light text-xl"></span>
                     </span>
                   </div>
@@ -321,9 +394,9 @@ export default function Pricing() {
                   <div className="px-6 my-4 w-full">
                     <button
                       type="button"
-                      onClick={() => handlePurchase(plan)}
-                      disabled={loadingPlanId !== null || isPlanPurchased(plan.id)}
-                      className="w-full flex items-center justify-center bg-purple-300 rounded-full text-lg py-2 border disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={() => handlePurchaseClick(plan)}
+                      disabled={isAuthLoading || loadingPlanId !== null || isPlanPurchased(plan.id)}
+                      className="w-full flex items-center justify-center bg-purple-300 rounded-full text-lg py-2 border cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loadingPlanId === plan.id
                         ? "Processing..."
@@ -353,10 +426,12 @@ export default function Pricing() {
                 <span className="text-xs bg-emerald-400 mt-8 px-6 uppercase py-2 rounded-full border">
                   {plan.planType}
                 </span>
-                <div className="flex flex-col px-6 py-2">
-                  <span className="line-through text-sm">{plan.strikeThrough}</span>
+                <div className="flex flex-col px-6 py-1 leading-none">
+                  <span className="line-through text-sm text-neutral-500">
+                    {formatStrikePrice(plan)}
+                  </span>
                   <span className="text-4xl">
-                    {plan.pricing}
+                    {`₹ ${getDisplayedPlanPrice(plan.id)}`}
                     <span className="font-light text-xl"></span>
                   </span>
                 </div>
@@ -365,12 +440,12 @@ export default function Pricing() {
                   {plan.description}
                 </span>
                 <div className="px-6 my-4 w-full">
-                  <button
-                    type="button"
-                    onClick={() => handlePurchase(plan)}
-                    disabled={loadingPlanId !== null || isPlanPurchased(plan.id)}
-                    className="w-full flex items-center justify-center border text-lg rounded-full py-2 bg-blue-300 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
+                    <button
+                      type="button"
+                      onClick={() => handlePurchaseClick(plan)}
+                      disabled={isAuthLoading || loadingPlanId !== null || isPlanPurchased(plan.id)}
+                      className="w-full flex items-center justify-center border text-lg rounded-full py-2 bg-blue-300 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                    >
                     {loadingPlanId === plan.id
                       ? "Processing..."
                       : isPlanPurchased(plan.id)
@@ -392,6 +467,120 @@ export default function Pricing() {
           </div>
         ))}
       </div>
+
+      {isSelectionOpen && selectedPlan ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4 py-6">
+          <div
+            className="absolute inset-0"
+            onClick={closeSelectionBox}
+            aria-hidden="true"
+          />
+          <div className="relative z-10 w-full max-w-3xl rounded-[28px] border border-neutral-200 bg-white p-5 shadow-2xl md:p-6">
+            <button
+              type="button"
+              onClick={closeSelectionBox}
+              className="absolute right-4 top-4 rounded-full p-2 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+              aria-label="Close stream selection"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="space-y-1.5 text-center">
+              <p className="text-xs font-medium uppercase tracking-[0.32em] text-neutral-500">
+                Choose your stream
+              </p>
+              <h2 className="text-xl font-semibold text-neutral-900 md:text-2xl">
+                Pick the stream for your {selectedPlan.planType} plan
+              </h2>
+            </div>
+
+            <div className="mt-6 flex flex-row gap-3 overflow-x-auto pb-2">
+              {STREAM_OPTIONS.map((stream) => {
+                const isSelected = selectedStream === stream.key;
+
+                return (
+                  <button
+                    key={stream.key}
+                    type="button"
+                    onClick={() => setSelectedStream(stream.key)}
+                    className={`min-w-[180px] flex-1 rounded-2xl border px-4 py-4 text-left transition-all ${
+                      isSelected
+                        ? "border-emerald-500 bg-emerald-50 shadow-sm"
+                        : "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-neutral-100"
+                    }`}
+                  >
+                    <p className="text-base font-semibold text-neutral-900 md:text-lg">
+                      {stream.label}
+                    </p>
+                    <p className="mt-1 text-xs text-neutral-500 line-through md:text-sm">
+                      {formatStrikePrice(selectedPlan)}
+                    </p>
+                    <p className="mt-0.5 text-xl font-bold text-neutral-900 md:text-2xl">
+                      ₹ {getDisplayPriceRupees(
+                        getPlanCheckoutAmountPaise(selectedPlan.id, selectedPlan.id !== "basic"),
+                      )}
+                    </p>
+                    <p className="mt-1.5 text-xs text-neutral-600 md:text-sm">
+                      {getPlanCardSubjects(selectedPlan.id)}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedPlan.id === "basic" ? (
+              <div className="mt-6 space-y-3">
+                <p className="text-center text-xs font-medium uppercase tracking-[0.32em] text-neutral-500">
+                  Add GAT
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIncludeGat((current) => !current)}
+                  className={`mx-auto flex w-full max-w-sm items-center justify-between rounded-2xl border px-4 py-3.5 text-left transition-all ${
+                    includeGat
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-neutral-100"
+                  }`}
+                >
+                  <div>
+                    <p className="text-base font-semibold text-neutral-900">GAT</p>
+                    <p className="text-xs text-neutral-600 md:text-sm">Optional add-on for Basic</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-neutral-900 md:text-xl">₹ 199</p>
+                    <p className="text-xs text-neutral-600 md:text-sm">
+                      {includeGat ? "Selected" : "Optional"}
+                    </p>
+                  </div>
+                </button>
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex flex-col items-center gap-3 border-t border-neutral-200 pt-5">
+              {selectedStream ? (
+                <>
+                  <p className="text-xs uppercase tracking-[0.32em] text-neutral-500">
+                    Total
+                  </p>
+                  <p className="text-2xl font-bold text-neutral-900 md:text-3xl">
+                    ₹ {getDisplayPriceRupees(selectedAmountPaise)}
+                  </p>
+                </>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleCheckout}
+                disabled={!selectedStream || loadingPlanId !== null}
+                className="rounded-full bg-linear-to-br from-blue-400 to-blue-600 px-7 py-3 text-sm font-semibold text-white shadow-lg transition hover:scale-[1.02] hover:shadow-2xl disabled:cursor-not-allowed disabled:opacity-60 md:text-base"
+              >
+                {loadingPlanId === selectedPlan.id
+                  ? "Processing..."
+                  : "Proceed to Checkout"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

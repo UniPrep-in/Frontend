@@ -10,6 +10,8 @@ type RazorpayOrder = {
     user_id?: string;
     plan_id?: string;
     plan_name?: string;
+    stream?: string;
+    include_gat?: string;
   };
 };
 
@@ -23,6 +25,8 @@ type RazorpayPaymentEntity = {
     user_id?: string;
     plan_id?: string;
     plan_name?: string;
+    stream?: string;
+    include_gat?: string;
   };
 };
 
@@ -81,6 +85,8 @@ export async function createRazorpayOrder(input: {
   userId: string;
   planId: string;
   planName: string;
+  stream: string;
+  includeGat: boolean;
 }) {
   const response = await fetch(`${RAZORPAY_API_BASE}/orders`, {
     method: "POST",
@@ -96,6 +102,8 @@ export async function createRazorpayOrder(input: {
         user_id: input.userId,
         plan_id: input.planId,
         plan_name: input.planName,
+        stream: input.stream,
+        include_gat: String(input.includeGat),
       },
     }),
     cache: "no-store",

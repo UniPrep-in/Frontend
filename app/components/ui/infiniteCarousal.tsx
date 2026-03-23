@@ -1,4 +1,4 @@
-'use client';
+ 'use client';
 import React, { useRef, useEffect, useState } from 'react';
 import { motion, useMotionValue, useAnimationFrame, useTransform, useSpring } from 'framer-motion';
 import Image from 'next/image';
@@ -9,10 +9,10 @@ interface ImageCarouselProps {
   direction?: 'left' | 'right'; // Direction of movement
 }
 
-export default function ImageCarousel({ 
-  images, 
+export default function ImageCarousel({
+  images,
   speed = 120,
-  direction = 'left' 
+  direction = 'left',
 }: ImageCarouselProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -78,7 +78,6 @@ export default function ImageCarousel({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Gradient masks for smooth edges */}
       <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
       <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
       

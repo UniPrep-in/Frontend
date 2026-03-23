@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getPlanById } from "@/lib/plans";
 import { createRazorpayOrder, getRazorpayKeyId } from "@/lib/razorpay";
+import {
+  createPendingSubscription,
+  getPlanCheckoutAmountPaise,
+  isValidStream,
+  normalizeIncludeGat,
+} from "@/lib/subscriptions";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
@@ -20,25 +27,66 @@ export async function POST(req: Request) {
       );
     }
 
-    const body = (await req.json().catch(() => null)) as { planId?: string } | null;
+    const body = (await req.json().catch(() => null)) as
+      | {
+          planId?: string;
+          stream?: string;
+          includeGat?: boolean;
+        }
+      | null;
     const planId = body?.planId?.trim() || "";
+    const stream = body?.stream?.trim().toLowerCase() || "";
     const plan = getPlanById(planId);
+    const includeGat = plan
+      ? normalizeIncludeGat(plan.id, body?.includeGat)
+      : false;
 
-    if (!plan) {
+    if (!plan || !isValidStream(stream)) {
       return NextResponse.json(
-        { error: "Invalid plan selected" },
+        { error: "Invalid plan or stream selected" },
         { status: 400 },
       );
     }
 
+    const amountPaise = getPlanCheckoutAmountPaise(plan.id, includeGat);
+
     const order = await createRazorpayOrder({
-      amountPaise: plan.amountPaise,
+      amountPaise,
       currency: "INR",
       receipt: `${plan.id}-${Date.now()}`,
       userId: user.id,
       planId: plan.id,
       planName: `${plan.planType} - ${plan.name}`,
+      stream,
+      includeGat,
     });
+
+    const adminSupabase = createAdminClient();
+    const { error: subscriptionError } = await createPendingSubscription(
+      adminSupabase,
+      {
+        userId: user.id,
+        planType: plan.planType,
+        stream,
+        orderId: order.id,
+        amount: order.amount,
+        currency: order.currency,
+        gat: includeGat,
+        gateway: "razorpay",
+        notes: {
+          planId: plan.id,
+          planName: `${plan.planType} - ${plan.name}`,
+          includeGat,
+        },
+      },
+    );
+
+    if (subscriptionError) {
+      return NextResponse.json(
+        { error: subscriptionError.message },
+        { status: 500 },
+      );
+    }
 
     return NextResponse.json({
       orderId: order.id,
@@ -47,6 +95,8 @@ export async function POST(req: Request) {
       keyId: getRazorpayKeyId(),
       planId: plan.id,
       planName: `${plan.planType} - ${plan.name}`,
+      stream,
+      includeGat,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to create order";
