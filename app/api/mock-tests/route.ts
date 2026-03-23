@@ -1,52 +1,44 @@
-import { NextResponse } from "next/server";
-import {
-  getMockTestsPage,
-  isValidMockFilter,
-  MOCK_TESTS_PAGE_SIZE,
-} from "@/lib/mock-tests";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 
 export async function GET(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const domain = searchParams.get("domain")?.trim() ?? "";
-    const subject = searchParams.get("subject")?.trim() ?? "";
-    const page = Number(searchParams.get("page") ?? "1");
+  const { searchParams } = new URL(req.url);
 
-    if (!domain || !subject || !Number.isInteger(page) || page < 1) {
-      return NextResponse.json(
-        { error: "domain, subject, and a valid page are required" },
-        { status: 400 },
-      );
-    }
+  const stream = searchParams.get("stream");
+  const subject = searchParams.get("subject");
+  const page = Number(searchParams.get("page") || "1");
 
-    if (!isValidMockFilter(domain, subject)) {
-      return NextResponse.json(
-        { error: "Invalid filter selection" },
-        { status: 400 },
-      );
-    }
+  const PAGE_SIZE = 6;
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
 
-    const supabase = await createClient();
-    const result = await getMockTestsPage(
-      {
-        domain,
-        subject,
-        page,
-        pageSize: MOCK_TESTS_PAGE_SIZE,
-      },
-      supabase,
-    );
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error("Mock tests route error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Unable to fetch mock tests",
-      },
-      { status: 500 },
-    );
+  let query = supabase
+    .from("tests")
+    .select("*", { count: "exact" });
+
+  // ✅ Only allow your streams
+  if (stream && ["GAT", "English", "Commerce", "Arts"].includes(stream)) {
+    query = query.eq("stream", stream);
   }
+
+  if (subject) {
+    query = query.eq("subject", subject);
+  }
+
+  const { data, error, count } = await query.range(from, to);
+
+  if (error) {
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+
+  return Response.json({
+    tests: data,
+    totalPages: Math.ceil((count || 0) / PAGE_SIZE),
+    currentPage: page,
+    totalCount: count || 0,
+  });
 }

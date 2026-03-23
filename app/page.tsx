@@ -4,7 +4,6 @@ import StatsStrip from "./components/StatsStrip";
 import Grid from "./components/ui/grid";
 import ImageCarousel from "./components/ui/infiniteCarousal";
 import CuetCoverage from "./components/CuetCoverage";
-import Courses from "./components/Courses";
 import Usp from "./components/Usp";
 import Reviews from "./components/Review";
 import Faq from "./components/faq";
@@ -33,8 +32,6 @@ export default function Home() {
       <CuetCoverage />
 
       <Pricing />
-
-      <Courses />
 
       <Usp />
 

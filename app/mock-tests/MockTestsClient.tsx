@@ -5,24 +5,44 @@ import Link from "next/link";
 import Image from "next/image";
 import useSWR from "swr";
 import { ChevronLeft, ChevronRight, Loader2, RotateCcw } from "lucide-react";
-import type { MockFilterTree, MockTestsPageResponse } from "@/lib/mock-tests";
+
+type MockTest = {
+  id: string;
+  title: string;
+  duration_minutes: number;
+  total_marks: number;
+  subject: string;
+  stream: string;
+  year: number;
+};
+
+type MockTestsPageResponse = {
+  tests: MockTest[];
+  totalPages: number;
+  currentPage: number;
+  totalCount: number;
+};
+
+type FilterTree = {
+  [stream: string]: string[];
+};
 
 type MockTestsClientProps = {
-  filterTree: MockFilterTree;
+  filterTree: FilterTree;
+  streams: string[];
+  subjects: string[];
   initialParams: {
-    domain?: string;
+    stream?: string;
     subject?: string;
     page?: string;
   };
 };
 
 type FilterState = {
-  domain: string;
+  stream: string;
   subject: string;
   page: number;
 };
-
-type HistoryMode = "push" | "replace";
 
 function toDisplayLabel(value: string) {
   return value
@@ -42,54 +62,18 @@ function parsePage(value?: string) {
   return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
-function sanitizeFilterState(state: FilterState, filterTree: MockFilterTree): FilterState {
-  const domain = state.domain && filterTree[state.domain] ? state.domain : "";
-  const subject =
-    domain && state.subject && filterTree[domain]?.includes(state.subject)
-      ? state.subject
-      : "";
-
-  return {
-    domain,
-    subject,
-    page: subject ? parsePage(String(state.page)) : 1,
-  };
-}
-
-function stateFromParams(params: MockTestsClientProps["initialParams"]): FilterState {
-  return {
-    domain: params.domain?.trim() ?? "",
-    subject: params.subject?.trim() ?? "",
-    page: parsePage(params.page),
-  };
-}
-
-function stateFromLocation(): FilterState {
-  const searchParams = new URLSearchParams(window.location.search);
-
-  return {
-    domain: searchParams.get("domain")?.trim() ?? "",
-    subject: searchParams.get("subject")?.trim() ?? "",
-    page: parsePage(searchParams.get("page") ?? "1"),
-  };
-}
-
-function serializeState(state: FilterState) {
-  return `${state.domain}|${state.subject}|${state.page}`;
-}
-
 function buildUrl(pathname: string, state: FilterState) {
   const params = new URLSearchParams();
 
-  if (state.domain) {
-    params.set("domain", state.domain);
+  if (state.stream) {
+    params.set("stream", state.stream);
   }
 
   if (state.subject) {
     params.set("subject", state.subject);
   }
 
-  if (state.subject && state.page > 1) {
+  if (state.page > 1) {
     params.set("page", String(state.page));
   }
 
@@ -99,15 +83,15 @@ function buildUrl(pathname: string, state: FilterState) {
 
 async function fetchMockTests([
   ,
-  domain,
+  stream,
   subject,
   page,
 ]: readonly [string, string, string, number]) {
-  const params = new URLSearchParams({
-    domain,
-    subject,
-    page: String(page),
-  });
+  const params = new URLSearchParams();
+  
+  if (stream) params.set("stream", stream);
+  if (subject) params.set("subject", subject);
+  params.set("page", String(page));
 
   const response = await fetch(`/api/mock-tests?${params.toString()}`, {
     cache: "no-store",
@@ -151,13 +135,19 @@ function FilterTab({
 
 export default function MockTestsClient({
   filterTree,
+  streams,
+  subjects,
   initialParams,
 }: MockTestsClientProps) {
   const pathname = "/mock-tests";
-  const [filters, setFilters] = useState(() =>
-    sanitizeFilterState(stateFromParams(initialParams), filterTree),
-  );
+  
+  const [filters, setFilters] = useState<FilterState>({
+    stream: initialParams.stream?.trim() ?? "",
+    subject: initialParams.subject?.trim() ?? "",
+    page: parsePage(initialParams.page),
+  });
 
+  // Update URL when filters change
   useEffect(() => {
     const nextUrl = buildUrl(pathname, filters);
     const currentUrl = `${window.location.pathname}${window.location.search}`;
@@ -167,33 +157,52 @@ export default function MockTestsClient({
     }
   }, [filters, pathname]);
 
+  // Handle browser back/forward
   useEffect(() => {
     const handlePopState = () => {
-      const nextState = sanitizeFilterState(stateFromLocation(), filterTree);
-      setFilters((current) =>
-        serializeState(current) === serializeState(nextState) ? current : nextState,
-      );
+      const searchParams = new URLSearchParams(window.location.search);
+      setFilters({
+        stream: searchParams.get("stream")?.trim() ?? "",
+        subject: searchParams.get("subject")?.trim() ?? "",
+        page: parsePage(searchParams.get("page") ?? "1"),
+      });
     };
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [filterTree]);
+  }, []);
 
-  const applyState = (nextState: FilterState, mode: HistoryMode = "push") => {
-    const sanitized = sanitizeFilterState(nextState, filterTree);
-    setFilters(sanitized);
-    window.history[mode === "replace" ? "replaceState" : "pushState"](
-      null,
-      "",
-      buildUrl(pathname, sanitized),
-    );
+  const applyState = (nextState: FilterState) => {
+    setFilters(nextState);
+    window.history.pushState(null, "", buildUrl(pathname, nextState));
   };
 
-  const domains = Object.keys(filterTree);
-  const subjects = filters.domain ? filterTree[filters.domain] ?? [] : [];
-  const isReadyToFetch = Boolean(filters.domain && filters.subject);
+  // Get available subjects based on selected stream
+  const availableSubjects = filters.stream && filterTree[filters.stream] 
+    ? filterTree[filters.stream] 
+    : [];
+
+  // Reset subject when stream changes
+  const handleStreamChange = (stream: string) => {
+    applyState({
+      stream,
+      subject: "", // Reset subject when stream changes
+      page: 1,
+    });
+  };
+
+  const handleSubjectChange = (subject: string) => {
+    applyState({
+      ...filters,
+      subject,
+      page: 1,
+    });
+  };
+
+  const isReadyToFetch = Boolean(filters.stream || filters.subject);
+  
   const swrKey = isReadyToFetch
-    ? (["mock-tests", filters.domain, filters.subject, filters.page] as const)
+    ? (["mock-tests", filters.stream, filters.subject, filters.page] as const)
     : null;
 
   const { data, error, isLoading, isValidating } = useSWR(swrKey, fetchMockTests, {
@@ -206,33 +215,37 @@ export default function MockTestsClient({
   const isInitialLoading = isReadyToFetch && !data && (isLoading || isValidating);
   const isRefreshing = Boolean(data) && isValidating;
 
+  const resetFilters = () => {
+    applyState({ stream: "", subject: "", page: 1 });
+  };
+
   return (
     <>
+      {/* Filters Section */}
       <section className="mb-8 rounded-3xl border border-neutral-100 bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4">
+          
+          {/* Stream Filter */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {domains.map((domain) => (
+              <span className="self-center text-sm font-medium text-neutral-500 mr-2">
+                Stream:
+              </span>
+              {streams.map((stream) => (
                 <FilterTab
-                  key={domain}
-                  active={filters.domain === domain}
-                  onClick={() =>
-                    applyState({
-                      domain,
-                      subject: "",
-                      page: 1,
-                    })
-                  }
+                  key={stream}
+                  active={filters.stream === stream}
+                  onClick={() => handleStreamChange(stream)}
                 >
-                  {toDisplayLabel(domain)}
+                  {toDisplayLabel(stream)}
                 </FilterTab>
               ))}
             </div>
 
             <button
               type="button"
-              onClick={() => applyState({ domain: "", subject: "", page: 1 })}
-              disabled={!filters.domain && !filters.subject}
+              onClick={resetFilters}
+              disabled={!filters.stream && !filters.subject}
               className="inline-flex shrink-0 items-center gap-2 rounded-full border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RotateCcw className="h-4 w-4" />
@@ -240,33 +253,48 @@ export default function MockTestsClient({
             </button>
           </div>
 
-          {filters.domain ? (
-            <div className="flex flex-wrap gap-3">
-              {subjects.map((subject) => (
+          {/* Subject Filter */}
+          <div className="flex flex-wrap gap-3 items-center">
+            <span className="text-sm font-medium text-neutral-500 mr-2">
+              Subject:
+            </span>
+            {filters.stream ? (
+              availableSubjects.length > 0 ? (
+                availableSubjects.map((subject) => (
+                  <FilterTab
+                    key={subject}
+                    active={filters.subject === subject}
+                    onClick={() => handleSubjectChange(subject)}
+                  >
+                    {toDisplayLabel(subject)}
+                  </FilterTab>
+                ))
+              ) : (
+                <span className="text-sm text-neutral-400">
+                  No subjects available for this stream
+                </span>
+              )
+            ) : (
+              subjects.map((subject) => (
                 <FilterTab
                   key={subject}
                   active={filters.subject === subject}
-                  onClick={() =>
-                    applyState({
-                      domain: filters.domain,
-                      subject,
-                      page: 1,
-                    })
-                  }
+                  onClick={() => handleSubjectChange(subject)}
                 >
                   {toDisplayLabel(subject)}
                 </FilterTab>
-              ))}
-            </div>
-          ) : null}
+              ))
+            )}
+          </div>
         </div>
       </section>
 
+      {/* Loading State */}
       {isInitialLoading ? (
         <div className="space-y-6">
           <div className="flex items-center gap-3 text-sm text-slate-600">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading mock tests for {toDisplayLabel(filters.subject)}...
+            Loading mock tests...
           </div>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, index) => (
@@ -279,6 +307,7 @@ export default function MockTestsClient({
         </div>
       ) : null}
 
+      {/* Error State */}
       {error ? (
         <div className="rounded-3xl border border-rose-200 bg-rose-50 px-6 py-10 text-center text-rose-700">
           <p className="text-lg font-semibold">We could not load these mocks.</p>
@@ -288,6 +317,7 @@ export default function MockTestsClient({
         </div>
       ) : null}
 
+      {/* Results */}
       {!isInitialLoading && !error && data ? (
         <>
           {isRefreshing ? (
@@ -304,7 +334,7 @@ export default function MockTestsClient({
               {data.tests.map((test) => (
                 <div
                   key={test.id}
-                  className="relative rounded-2xl p-4 shadow-sm hover:shadow-md transition overflow-hidden"
+                  className="relative rounded-2xl p-4 shadow-sm hover:shadow-md transition overflow-hidden border border-neutral-200 bg-white"
                 >
                   <Image
                     src="/assets/nta.jpeg"
@@ -313,15 +343,35 @@ export default function MockTestsClient({
                     height={64}
                     className="absolute top-3 right-3 h-16 w-16 opacity-50 pointer-events-none select-none"
                   />
-                  <h2 className="text-xl font-semibold">{test.title}</h2>
-                  <div className="flex justify-between my-8">
-                    <p className="text-sm text-black">{test.duration_minutes} mins</p>
-                    <p className="text-sm text-black">Total Marks: {test.total_marks}</p>
+                  
+                  {/* Stream & Subject Tags */}
+                  <div className="flex gap-2 mb-2">
+                    {test.stream && (
+                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                        {toDisplayLabel(test.stream)}
+                      </span>
+                    )}
+                    {test.subject && (
+                      <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">
+                        {toDisplayLabel(test.subject)}
+                      </span>
+                    )}
+                  </div>
+
+                  <h2 className="text-xl font-semibold text-neutral-900">{test.title}</h2>
+                  
+                  <div className="flex justify-between my-4 text-sm text-neutral-600">
+                    <span>{test.duration_minutes} mins</span>
+                    <span>Total Marks: {test.total_marks}</span>
+                  </div>
+
+                  <div className="text-xs text-neutral-500 mb-4">
+                    Year: {test.year}
                   </div>
 
                   <Link
                     href={`/mock-tests/${test.id}`}
-                    className="inline-block px-4 py-2 bg-emerald-300 border border-black text-black rounded-xl"
+                    className="inline-block px-4 py-2 bg-emerald-300 border border-black text-black rounded-xl hover:bg-emerald-400 transition"
                   >
                     Start Test
                   </Link>
@@ -330,10 +380,11 @@ export default function MockTestsClient({
             </div>
           ) : (
             <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center text-slate-600">
-              No mock tests are available for this subject yet.
+              No mock tests found for the selected filters.
             </div>
           )}
 
+          {/* Pagination */}
           {data.totalPages > 1 ? (
             <div className="mt-10 flex justify-center">
               <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-3 shadow-sm">
@@ -383,6 +434,14 @@ export default function MockTestsClient({
           ) : null}
         </>
       ) : null}
+
+      {/* Empty State - No filters selected */}
+      {!isReadyToFetch && !isInitialLoading && !data && (
+        <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center text-slate-600">
+          <p className="text-lg font-medium mb-2">Select a stream or subject</p>
+          <p className="text-sm">Choose a filter above to see available mock tests</p>
+        </div>
+      )}
     </>
   );
 }

@@ -13,11 +13,24 @@ export const createClient = () => {
     {
       cookies: {
         getAll() {
-          return cookieStore.getAll();
+          try {
+            if (typeof cookieStore.getAll === "function") {
+              return cookieStore.getAll();
+            }
+            return [];
+          } catch {
+            return [];
+          }
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set({ name, value, options });
+            try {
+              if (typeof cookieStore.set === "function") {
+                cookieStore.set({ name, value, options });
+              }
+            } catch {
+              // ignore in read-only environments
+            }
           });
         },
       },
