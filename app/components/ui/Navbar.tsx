@@ -32,33 +32,26 @@ export default function Navbar() {
       setIsScrolled(window.scrollY > 20);
     };
 
-    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
     };
   }, []);
 
-  useEffect(() => {
-    if (!isProfileOpen) {
-      return;
+const isProfileOpenRef = useRef(isProfileOpen);
+useEffect(() => { isProfileOpenRef.current = isProfileOpen; }, [isProfileOpen]);
+
+useEffect(() => {
+  const handleClickOutside = (e: MouseEvent) => {
+    if (!isProfileOpenRef.current) return;
+    if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+      setIsProfileOpen(false);
     }
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        profileMenuRef.current &&
-        !profileMenuRef.current.contains(event.target as Node)
-      ) {
-        setIsProfileOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isProfileOpen]);
+  };
+  document.addEventListener("mousedown", handleClickOutside);
+  return () => document.removeEventListener("mousedown", handleClickOutside);
+}, []);
 
   const handleLogout = async () => {
   await supabase.auth.signOut();
@@ -134,7 +127,7 @@ const initials = useMemo(() =>
                       <span>{initials}</span>
                     )}
                   </div>
-                  <span className="hidden sm:block text-sm font-medium text-slate-700 max-w-[100px] truncate">
+                  <span className="hidden sm:block text-sm font-medium text-slate-700 max-w-25 truncate">
                     {displayName}
                   </span>
                   <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isProfileOpen ? "rotate-180" : ""}`} />
@@ -152,7 +145,7 @@ const initials = useMemo(() =>
                     >
                       <div className="p-3 border-b border-slate-100">
                         <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
-                        <p className="text-xs text-slate-500 truncate" onClick={()=>router.push("/profile")}>{user.email}</p>
+                        <p className="text-xs text-slate-500 truncate">{user.email}</p>
                       </div>
                       <div className="p-1 flex flex-col justify-center items-center">
                         <Link className="flex w-full gap-2 items-center justify-start hover:bg-neutral-100 duration-300 px-3 py-2" href="/profile"><IoMdPerson />Profile</Link>
