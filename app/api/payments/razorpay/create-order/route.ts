@@ -82,8 +82,9 @@ export async function POST(req: Request) {
     );
 
     if (subscriptionError) {
+      console.error("Failed to create pending subscription", subscriptionError);
       return NextResponse.json(
-        { error: subscriptionError.message },
+        { error: "Unable to initialize checkout right now" },
         { status: 500 },
       );
     }
@@ -99,10 +100,10 @@ export async function POST(req: Request) {
       includeGat,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to create order";
+    console.error("Razorpay create-order failed", error);
 
     return NextResponse.json(
-      { error: message },
+      { error: "Unable to initialize checkout right now" },
       { status: 500 },
     );
   }

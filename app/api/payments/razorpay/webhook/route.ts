@@ -136,8 +136,9 @@ export async function POST(req: Request) {
     );
 
     if (subscriptionError) {
+      console.error("Failed to mark subscription verified from webhook", subscriptionError);
       return NextResponse.json(
-        { error: subscriptionError.message },
+        { error: "Unable to process webhook" },
         { status: 500 },
       );
     }
@@ -148,11 +149,10 @@ export async function POST(req: Request) {
       paymentStatus: "verified",
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to process Razorpay webhook";
+    console.error("Razorpay webhook failed", error);
 
     return NextResponse.json(
-      { error: message },
+      { error: "Unable to process webhook" },
       { status: 500 },
     );
   }

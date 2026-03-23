@@ -58,6 +58,11 @@ declare global {
 
 let razorpayScriptPromise: Promise<boolean> | null = null;
 const RUPEE_SYMBOL = "\u20B9";
+const CHECKOUT_ERROR_MESSAGE =
+  "We couldn't start checkout right now. Please try again in a moment.";
+const VERIFY_ERROR_MESSAGE =
+  "We couldn't confirm your payment right now. If money was deducted, please contact support.";
+const AUTH_ERROR_MESSAGE = "Please sign in and try again.";
 
 function loadRazorpayCheckoutScript() {
   if (typeof window === "undefined") {
@@ -82,6 +87,30 @@ function loadRazorpayCheckoutScript() {
   });
 
   return razorpayScriptPromise;
+}
+
+function getCheckoutErrorMessage(status?: number) {
+  if (status === 401) {
+    return AUTH_ERROR_MESSAGE;
+  }
+
+  if (status === 400) {
+    return "Please review your selection and try again.";
+  }
+
+  return CHECKOUT_ERROR_MESSAGE;
+}
+
+function getVerifyErrorMessage(status?: number) {
+  if (status === 401) {
+    return AUTH_ERROR_MESSAGE;
+  }
+
+  if (status === 400) {
+    return "Your payment could not be verified. Please try again or contact support.";
+  }
+
+  return VERIFY_ERROR_MESSAGE;
 }
 
 export default function Pricing() {
@@ -213,7 +242,7 @@ export default function Pricing() {
       const scriptLoaded = await loadRazorpayCheckoutScript();
 
       if (!scriptLoaded || !window.Razorpay) {
-        throw new Error("Unable to load Razorpay checkout");
+        throw new Error(CHECKOUT_ERROR_MESSAGE);
       }
 
       const orderResult = await fetch("/api/payments/razorpay/create-order", {
@@ -234,12 +263,13 @@ export default function Pricing() {
 
         return {
           ok: response.ok,
+          status: response.status,
           payload,
         };
       });
 
       if (!orderResult.ok || !orderResult.payload || !("orderId" in orderResult.payload)) {
-        throw new Error(orderResult.payload?.error || "Unable to initialize payment");
+        throw new Error(getCheckoutErrorMessage(orderResult.status));
       }
 
       const orderPayload = orderResult.payload;
@@ -294,7 +324,7 @@ export default function Pricing() {
               | null;
 
             if (!verifyResponse.ok || !verifyPayload?.success) {
-              throw new Error(verifyPayload?.error || "Payment verification failed");
+              throw new Error(getVerifyErrorMessage(verifyResponse.status));
             }
 
             setPurchasedPlanId((verifyPayload.planId as PlanId | undefined) || selectedPlan.id);
@@ -306,7 +336,7 @@ export default function Pricing() {
             });
           } catch (error) {
             const message =
-              error instanceof Error ? error.message : "Payment verification failed";
+              error instanceof Error ? error.message : VERIFY_ERROR_MESSAGE;
 
             setFeedback({
               type: "error",
@@ -321,7 +351,7 @@ export default function Pricing() {
       checkout.open();
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Unable to start payment";
+        error instanceof Error ? error.message : CHECKOUT_ERROR_MESSAGE;
 
       setFeedback({
         type: "error",

@@ -29,8 +29,9 @@ export async function GET() {
       .maybeSingle();
 
     if (error) {
+      console.error("Failed to load subscription status", error);
       return NextResponse.json(
-        { error: error.message },
+        { error: "Unable to load subscription status" },
         { status: 500 },
       );
     }
@@ -42,11 +43,10 @@ export async function GET() {
       paymentStatus: subscription?.payment_status ?? null,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to load subscription status";
+    console.error("Subscription status route failed", error);
 
     return NextResponse.json(
-      { error: message },
+      { error: "Unable to load subscription status" },
       { status: 500 },
     );
   }

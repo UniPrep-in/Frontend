@@ -123,8 +123,9 @@ export async function POST(req: Request) {
       });
 
     if (subscriptionError) {
+      console.error("Failed to verify subscription payment", subscriptionError);
       return NextResponse.json(
-        { error: subscriptionError.message },
+        { error: "Unable to verify payment right now" },
         { status: 500 },
       );
     }
@@ -136,11 +137,10 @@ export async function POST(req: Request) {
       paymentStatus: updatedSubscription.payment_status,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to verify payment";
+    console.error("Razorpay verify failed", error);
 
     return NextResponse.json(
-      { error: message },
+      { error: "Unable to verify payment right now" },
       { status: 500 },
     );
   }
