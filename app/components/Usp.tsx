@@ -194,7 +194,7 @@ export default function Usp() {
                 }}
               >
                 <Image
-                  src="/assets/usp.avif"
+                  src="/assets/usp.jpeg"
                   alt="Platform Preview"
                   fill
                   className="object-cover rounded-full p-4"
