@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Image from "next/image";
+import { AnimatePresence, motion } from "framer-motion";
 
 export default function Faq() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -39,17 +40,21 @@ export default function Faq() {
   return (
     <main className="min-h-screen bg-linear-to-b from-gray-50 to-white py-12 md:py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2 lg:gap-16">
           
           {/* Left Side - Image */}
-          <div className="relative w-full aspect-square max-w-md mx-auto lg:max-w-none">
-            <Image
-              src="/assets/faq.png"
-              alt="FAQ Illustration"
-              fill
-              className="object-cover rounded-2xl"
-              priority
-            />
+          <div className="w-full self-start">
+            <div className="mx-auto flex w-full max-w-md items-center justify-center lg:min-h-[520px] lg:max-w-none lg:pt-14">
+              <div className="relative aspect-square w-full">
+                <Image
+                  src="/assets/faq.png"
+                  alt="FAQ Illustration"
+                  fill
+                  className="object-cover rounded-2xl"
+                  priority
+                />
+              </div>
+            </div>
           </div>
 
           {/* Right Side - FAQ Accordion */}
@@ -109,15 +114,22 @@ export default function Faq() {
                     </span>
                   </button>
                   
-                  <div
-                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                      openIndex === index ? "max-h-96" : "max-h-0"
-                    }`}
-                  >
-                    <div className="p-5 pt-0 text-gray-600 text-sm md:text-base leading-relaxed border-t border-gray-100">
-                      {faq.answer}
-                    </div>
-                  </div>
+                  <AnimatePresence initial={false}>
+                    {openIndex === index ? (
+                      <motion.div
+                        key="answer"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="border-t border-gray-100 bg-gradient-to-b from-white to-orange-50/40 px-5 pb-5 pt-4 text-sm leading-7 text-gray-600 md:text-base">
+                          {faq.answer}
+                        </div>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
                 </div>
               ))}
             </div>

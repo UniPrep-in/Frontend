@@ -60,15 +60,18 @@ const reviews = [
   const displayedReviews = showAll ? reviews : initialReviews;
 
   return (
-    <main id="testimonials" className="min-h-screen bg-gray-50 py-20 px-6">
+    <main
+      id="testimonials"
+      className="min-h-screen overflow-x-hidden bg-gray-50 px-4 py-16 sm:px-6 sm:py-20"
+    >
       <div className="max-w-5xl mx-auto">
         
         {/* Header */}
-        <div className="flex flex-col items-center justify-center mb-16">
-          <h2 className="text-6xl text-black max-w-xl text-center mb-4">
+        <div className="mb-12 flex flex-col items-center justify-center sm:mb-16">
+          <h2 className="mb-4 max-w-xl text-center text-4xl text-black sm:text-5xl md:text-6xl">
             Testimonials
           </h2>
-          <p className="text-black text-lg text-center max-w-xl mx-auto">
+          <p className="mx-auto max-w-xl text-center text-base text-black sm:text-lg">
             What CUET Aspirants think about Uniprep
           </p>
         </div>

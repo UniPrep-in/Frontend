@@ -1,9 +1,7 @@
 "use client";
-import Skeletal from "@/app/components/ui/skeletal";
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useState } from "react";
 
-interface Flashcard {
+export interface Flashcard {
   word: string;
   meaning: string;
   type?: string;
@@ -12,50 +10,24 @@ interface Flashcard {
   example?: string;
 }
 
-export default function UserFlashcardCarousel() {
+type UserFlashcardCarouselProps = {
+  initialFlashcards: Flashcard[];
+};
+
+export default function UserFlashcardCarousel({
+  initialFlashcards,
+}: UserFlashcardCarouselProps) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
-  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
-  const [loading, setLoading] = useState(true);
+  const flashcards = initialFlashcards;
 
-  const supabase = createClient();
-
-  useEffect(() => {
-    async function fetchFlashcards() {
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData?.user;
-
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      const { data } = await supabase
-        .from("flash_cards")
-        .select("word, meaning, type, synonyms, antonyms, example")
-        .eq("user_id", user.id);
-
-      if (data) setFlashcards(data as Flashcard[]);
-
-      setLoading(false);
-    }
-
-    fetchFlashcards();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center">
-        <Skeletal />
-      </div>
-    );
-  }
-
-  if (!flashcards || flashcards.length === 0) {
+  if (flashcards.length === 0) {
     return (
       <div className="p-6 border h-78 flex gap-2 flex-col justify-center items-center rounded-2xl bg-black">
         <span className="text-6xl">📝</span>
-        <h1 className="text-white text-center text-xl max-w-xs">Flashcards you created will appear here</h1>
+        <h1 className="text-white text-center text-xl max-w-xs">
+          Flashcards you created will appear here
+        </h1>
       </div>
     );
   }
@@ -79,7 +51,6 @@ export default function UserFlashcardCarousel() {
         className="relative w-full h-72 cursor-pointer"
         style={{ perspective: "1000px" }}
       >
-
         <div
           className="absolute w-full h-full transition-transform duration-500"
           style={{
@@ -87,24 +58,21 @@ export default function UserFlashcardCarousel() {
             transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
           }}
         >
-
-          {/* Front */}
           <div
             className="absolute w-full h-full bg-black rounded-2xl flex flex-col items-center justify-center border border-neutral-800"
             style={{ backfaceVisibility: "hidden" }}
           >
             <h3 className="text-white text-4xl font-bold">{card.word}</h3>
 
-            {card.type && (
+            {card.type ? (
               <span className="mt-2 text-md uppercase bg-purple-300 text-black px-3 py-1 rounded-full">
                 # {card.type}
               </span>
-            )}
+            ) : null}
 
             <span className="text-xs text-neutral-400 mt-6">Click to flip</span>
           </div>
 
-          {/* Back */}
           <div
             className="absolute w-full h-full bg-neutral-900 rounded-2xl flex flex-col gap-3 items-center justify-center p-6 border border-neutral-800"
             style={{
@@ -114,33 +82,38 @@ export default function UserFlashcardCarousel() {
           >
             <p className="text-neutral-200 text-sm text-center">{card.meaning}</p>
 
-            {card.example && (
+            {card.example ? (
               <p className="text-xs text-neutral-400 italic text-center">
                 {card.example}
               </p>
-            )}
+            ) : null}
 
-            {card.synonyms && card.synonyms.length > 0 && (
+            {card.synonyms && card.synonyms.length > 0 ? (
               <div className="flex flex-wrap gap-2 justify-center">
                 {card.synonyms.map((syn, i) => (
-                  <span key={i} className="text-xs bg-emerald-400 text-black px-2 py-1 rounded-full">
+                  <span
+                    key={i}
+                    className="text-xs bg-emerald-400 text-black px-2 py-1 rounded-full"
+                  >
                     {syn}
                   </span>
                 ))}
               </div>
-            )}
+            ) : null}
 
-            {card.antonyms && card.antonyms.length > 0 && (
+            {card.antonyms && card.antonyms.length > 0 ? (
               <div className="flex flex-wrap gap-2 justify-center">
                 {card.antonyms.map((ant, i) => (
-                  <span key={i} className="text-xs bg-red-400 text-black px-2 py-1 rounded-full">
+                  <span
+                    key={i}
+                    className="text-xs bg-red-400 text-black px-2 py-1 rounded-full"
+                  >
                     {ant}
                   </span>
                 ))}
               </div>
-            )}
+            ) : null}
           </div>
-
         </div>
       </div>
 
@@ -163,7 +136,6 @@ export default function UserFlashcardCarousel() {
           Next
         </button>
       </div>
-
     </div>
   );
 }

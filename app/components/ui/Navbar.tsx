@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Menu, X, ChevronDown, LogOut } from "lucide-react";
+import { Menu, X, ChevronDown, LogOut, Mail } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { IoMdPerson } from "react-icons/io";
@@ -141,19 +141,47 @@ const initials = useMemo(() =>
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.95 }}
                       transition={{ duration: 0.2 }}
-                      className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-xl shadow-black/10 border border-slate-100 overflow-hidden"
+                      className="absolute right-0 top-full mt-3 w-64 origin-top-right rounded-[26px] border border-slate-200 bg-white p-2 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.35)]"
                     >
-                      <div className="p-3 border-b border-slate-100">
-                        <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
-                        <p className="text-xs text-slate-500 truncate">{user.email}</p>
+                      <div className="rounded-[20px] border border-slate-200/80 bg-linear-to-br from-slate-50 via-white to-blue-50 px-3.5 py-3.5 shadow-sm">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-slate-900">
+                            {displayName}
+                          </p>
+                          <div className="mt-2 flex items-center gap-2 text-[11px] text-slate-600">
+                            <Mail className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                            <span className="min-w-0 break-all">{user.email}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="p-1 flex flex-col justify-center items-center">
-                        <Link className="flex w-full gap-2 items-center justify-start hover:bg-neutral-100 duration-300 px-3 py-2" href="/profile"><IoMdPerson />Profile</Link>
+
+                      <div className="mt-2 flex flex-col gap-1">
+                        <Link
+                          className="flex w-full items-center justify-between rounded-2xl px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors duration-200 hover:bg-slate-100"
+                          href="/profile"
+                          prefetch
+                          onMouseEnter={() => router.prefetch("/profile")}
+                          onFocus={() => router.prefetch("/profile")}
+                          onClick={() => setIsProfileOpen(false)}
+                        >
+                          <span className="flex items-center gap-2.5">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                              <IoMdPerson className="h-4 w-4" />
+                            </span>
+                            Profile
+                          </span>
+                          <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                            Open
+                          </span>
+                        </Link>
+
                         <button
                           onClick={handleLogout}
-                          className="w-full flex border-t border-t-neutral-100 items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200"
+                          className="flex w-full items-center gap-2.5 rounded-2xl border border-rose-100 px-3 py-2.5 text-sm font-medium text-rose-600 transition-colors duration-200 hover:bg-rose-50"
                         >
-                          <LogOut className="w-4 h-4" />
+                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50 text-rose-500">
+                            <LogOut className="h-4 w-4" />
+                          </span>
                           Sign out
                         </button>
                       </div>

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { FaPlus } from "react-icons/fa";
 import Skeletal from "@/app/components/ui/skeletal";
@@ -12,13 +12,13 @@ type Todo = {
 };
 
 export default function TodoList() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTodo, setNewTodo] = useState("");
   const [newDescription, setNewDescription] = useState("");
 
-  async function fetchTodos() {
+  const fetchTodos = useCallback(async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -41,12 +41,25 @@ export default function TodoList() {
       setTodos(data || []);
     }
     setLoading(false);
-  }
+  }, [supabase]);
 
   useEffect(() => {
-    fetchTodos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase]);
+    let isMounted = true;
+
+    const loadTodos = async () => {
+      if (!isMounted) {
+        return;
+      }
+
+      await fetchTodos();
+    };
+
+    void loadTodos();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchTodos]);
 
   async function toggleComplete(todo: Todo) {
     const updatedStatus = !todo.is_complete;
