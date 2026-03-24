@@ -15,11 +15,10 @@ type Lecture = {
   is_live: boolean;
 };
 
-export default function LecturesView({ lectureId }: { lectureId: string }) {
-  const supabase = createClient();
+const supabase = createClient();
 
+export default function LecturesView({ lectureId }: { lectureId: string }) {
   const [liveLecture, setLiveLecture] = useState<Lecture | null>(null);
-  const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
   const [user, setUser] = useState<{ id: string; name: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -27,25 +26,24 @@ export default function LecturesView({ lectureId }: { lectureId: string }) {
     const fetchLecture = async () => {
       setLoading(true);
 
-      const { data, error } = await supabase
-        .from("live_lectures")
-        .select("*")
-        .eq("id", lectureId)
-        .single();
+      const response = await fetch(`/api/lectures/${lectureId}`, {
+        cache: "no-store",
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { lecture?: Lecture }
+        | null;
 
-      if (!error) {
-        setLiveLecture(data || null);
-      }
-
+      setLiveLecture(response.ok ? payload?.lecture ?? null : null);
       setLoading(false);
     };
 
-    fetchLecture();
+    void fetchLecture();
   }, [lectureId]);
 
   useEffect(() => {
     const fetchUser = async () => {
       const { data } = await supabase.auth.getUser();
+
       if (data?.user) {
         setUser({
           id: data.user.id,
@@ -54,7 +52,7 @@ export default function LecturesView({ lectureId }: { lectureId: string }) {
       }
     };
 
-    fetchUser();
+    void fetchUser();
   }, []);
 
   const getEmbedUrl = (url: string) => {
@@ -66,13 +64,10 @@ export default function LecturesView({ lectureId }: { lectureId: string }) {
     }
   };
 
-  const embedUrl = liveLecture
-    ? getEmbedUrl(liveLecture.youtube_url)
-    : "";
+  const embedUrl = liveLecture ? getEmbedUrl(liveLecture.youtube_url) : "";
 
   return (
     <div className="p-4 md:p-8 space-y-8">
-      {/* LIVE SECTION */}
       <div>
         <h2 className="text-xl font-semibold mb-4">Live Lecture</h2>
 
@@ -80,8 +75,6 @@ export default function LecturesView({ lectureId }: { lectureId: string }) {
           <p className="text-gray-500">Loading lecture...</p>
         ) : liveLecture ? (
           <div className="flex flex-col md:flex-row gap-6">
-            
-            {/* VIDEO */}
             <div className="flex-1 bg-black rounded-lg overflow-hidden">
               <iframe
                 src={embedUrl}
@@ -98,16 +91,14 @@ export default function LecturesView({ lectureId }: { lectureId: string }) {
               </div>
             </div>
 
-            {/* CHAT */}
             <div className="w-full md:w-80">
-              {user && (
+              {user ? (
                 <LectureChat lectureId={liveLecture.id} user={user} />
-              )}
+              ) : null}
             </div>
-
           </div>
         ) : (
-          <p className="text-gray-500">No live lecture currently</p>
+          <p className="text-gray-500">Lecture not available for your plan.</p>
         )}
       </div>
     </div>

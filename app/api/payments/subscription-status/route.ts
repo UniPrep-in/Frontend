@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { PLAN_CATALOG } from "@/lib/plans";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  createBrowseAccess,
+  getLatestVerifiedSubscriptionAccess,
+} from "@/lib/subscriptions";
 
 export async function GET() {
   try {
@@ -19,14 +23,10 @@ export async function GET() {
     }
 
     const adminSupabase = createAdminClient();
-    const { data: subscription, error } = await adminSupabase
-      .from("subscriptions")
-      .select("plan_type, payment_status")
-      .eq("user_id", user.id)
-      .eq("payment_status", "verified")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data: access, error } = await getLatestVerifiedSubscriptionAccess(
+      adminSupabase,
+      user.id,
+    );
 
     if (error) {
       console.error("Failed to load subscription status", error);
@@ -36,11 +36,21 @@ export async function GET() {
       );
     }
 
-    const plan = PLAN_CATALOG.find((item) => item.planType === subscription?.plan_type);
+    const resolvedAccess = access ?? createBrowseAccess();
+    const plan = PLAN_CATALOG.find(
+      (item) => item.planType === resolvedAccess.planType,
+    );
 
     return NextResponse.json({
       planId: plan?.id ?? null,
-      paymentStatus: subscription?.payment_status ?? null,
+      paymentStatus: access?.paymentStatus ?? null,
+      stream: resolvedAccess.baseStreamKey,
+      streamLabel: resolvedAccess.baseStreamLabel,
+      gat: resolvedAccess.hasGat,
+      isSubscriber: resolvedAccess.isSubscriber,
+      selectableStreams: resolvedAccess.selectableMainStreams,
+      allowedStreams: resolvedAccess.allowedContentStreams,
+      allowedCategories: resolvedAccess.allowedCategories,
     });
   } catch (error) {
     console.error("Subscription status route failed", error);

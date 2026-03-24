@@ -362,7 +362,7 @@ export default function Pricing() {
   };
 
   return (
-    <main className="max-w-6xl py-12 mx-auto px-4">
+    <main id="pricing" className="max-w-6xl py-12 mx-auto px-4 scroll-mt-24">
       {feedback ? (
         <div className="fixed right-4 top-24 z-50 w-[calc(100%-2rem)] max-w-sm">
           <div

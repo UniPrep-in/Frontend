@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import ProceedLoader from "./ProceedLoader";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getLatestVerifiedSubscriptionAccess } from "@/lib/subscriptions";
 
 export default async function TestInstructionsPage({
   params,
@@ -38,6 +40,19 @@ export default async function TestInstructionsPage({
     redirect("/auth");
   }
 
+  const adminSupabase = createAdminClient();
+  const { data: access, error: accessError } =
+    await getLatestVerifiedSubscriptionAccess(adminSupabase, user.id);
+
+  if (accessError) {
+    console.error("Failed to load mock access", accessError);
+    redirect("/mock-tests");
+  }
+
+  if (!access) {
+    redirect("/mock-tests");
+  }
+
   // Fetch test details
   const { data: test } = await supabase
     .from("tests")
@@ -50,7 +65,7 @@ export default async function TestInstructionsPage({
   }
 
   // Fetch total questions count
-  const { count } = await supabase
+  await supabase
     .from("questions")
     .select("*", { count: "exact", head: true })
     .eq("test_id", testId);
@@ -81,6 +96,19 @@ export default async function TestInstructionsPage({
 
     if (!user) {
       redirect("/auth");
+    }
+
+    const adminSupabase = createAdminClient();
+    const { data: access, error: accessError } =
+      await getLatestVerifiedSubscriptionAccess(adminSupabase, user.id);
+
+    if (accessError) {
+      console.error("Failed to load mock access", accessError);
+      redirect("/mock-tests");
+    }
+
+    if (!access) {
+      redirect("/mock-tests");
     }
 
     const { data: attempt } = await supabase

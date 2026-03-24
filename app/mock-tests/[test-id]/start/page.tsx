@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import TestEngine from "./TestEngine";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getLatestVerifiedSubscriptionAccess } from "@/lib/subscriptions";
 
 export default async function StartTestPage({
   params,
@@ -41,8 +43,21 @@ export default async function StartTestPage({
 
   if (!user) redirect("/auth");
 
+  const adminSupabase = createAdminClient();
+  const { data: access, error: accessError } =
+    await getLatestVerifiedSubscriptionAccess(adminSupabase, user.id);
+
+  if (accessError) {
+    console.error("Failed to load mock access", accessError);
+    redirect("/mock-tests");
+  }
+
+  if (!access) {
+    redirect("/mock-tests");
+  }
+
   // Validate attempt
-  const { data: attempt, error: attemptError } = await supabase
+  const { data: attempt } = await supabase
     .from("test_attempts")
     .select("*")
     .eq("id", attemptId)
@@ -78,7 +93,6 @@ export default async function StartTestPage({
 
   const test = testRes.data;
   const questions = questionsRes.data;
-  const questionsError = questionsRes.error;
 
   if (!test) redirect("/mock-tests");
 
