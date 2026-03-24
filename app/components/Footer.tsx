@@ -73,7 +73,7 @@ export default function Footer() {
               Uniprep.in
             </h2>
             <p className="text-gray-600 text-base md:text-lg max-w-md leading-relaxed">
-              Empowering learners worldwide with expert-led courses and industry-recognized certificates. Start your journey today.
+              Our study materials are carefully curated by CUET rankers, ensuring you learn exactly what matters - nothing extra, nothing missing.
             </p>
             
             {/* Social Links */}
