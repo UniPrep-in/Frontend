@@ -1,5 +1,5 @@
 "use client";
-
+import ComingSoon from "../components/ui/comingSoon";
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { RotateCcw } from "lucide-react";
@@ -262,6 +262,7 @@ export default function Lecture() {
       <Navbar />
 
       <div className="p-4 md:p-8">
+        {/* 
         <h1 className="mb-6 text-xl font-semibold">Lectures</h1>
 
         {selectableStreams.length > 0 ? (
@@ -340,6 +341,9 @@ export default function Lecture() {
             </div>
           </>
         )}
+          */}
+
+          <ComingSoon />
       </div>
 
       <Footer />
