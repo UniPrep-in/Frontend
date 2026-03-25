@@ -57,7 +57,6 @@ declare global {
 }
 
 let razorpayScriptPromise: Promise<boolean> | null = null;
-const RUPEE_SYMBOL = "\u20B9";
 const CHECKOUT_ERROR_MESSAGE =
   "We couldn't start checkout right now. Please try again in a moment.";
 const VERIFY_ERROR_MESSAGE =
@@ -186,13 +185,13 @@ export default function Pricing() {
     );
 
   const getDisplayedStrikePrice = (plan: PlanDefinition) =>
-    plan.id === "basic" ? "₹999" : plan.strikeThrough.replace("Rs. ", "₹");
+    plan.id === "basic" ? "Rs. 999" : plan.strikeThrough.replace("Rs. ", "Rs. ");
 
   const getPlanCardSubjects = (planId: PlanId) =>
     planId === "basic" ? "Domain + English" : "Domain + English + GAT";
 
   const formatStrikePrice = (plan: PlanDefinition) =>
-    getDisplayedStrikePrice(plan).replace("â‚¹", `${RUPEE_SYMBOL} `);
+    getDisplayedStrikePrice(plan).replace("Rs. ", `Rs. `);
 
   const isPlanPurchased = (planId: PlanId) =>
     paymentStatus === "verified" && activePlanId === planId;
@@ -413,7 +412,7 @@ export default function Pricing() {
                       {formatStrikePrice(plan)}
                     </span>
                     <span className="text-4xl">
-                      {`₹ ${getDisplayedPlanPrice(plan.id)}`}
+                      {`Rs. ${getDisplayedPlanPrice(plan.id)}`}
                       <span className="font-light text-xl"></span>
                     </span>
                   </div>
@@ -461,7 +460,7 @@ export default function Pricing() {
                     {formatStrikePrice(plan)}
                   </span>
                   <span className="text-4xl">
-                    {`₹ ${getDisplayedPlanPrice(plan.id)}`}
+                    {`Rs. ${getDisplayedPlanPrice(plan.id)}`}
                     <span className="font-light text-xl"></span>
                   </span>
                 </div>
@@ -546,7 +545,7 @@ export default function Pricing() {
                       {formatStrikePrice(selectedPlan)}
                     </p>
                     <p className="mt-0.5 text-xl font-bold text-neutral-900 md:text-2xl">
-                      ₹ {getDisplayPriceRupees(
+                      Rs. {getDisplayPriceRupees(
                         getPlanCheckoutAmountPaise(selectedPlan.id, selectedPlan.id !== "basic"),
                       )}
                     </p>
@@ -561,7 +560,7 @@ export default function Pricing() {
             {selectedPlan.id === "basic" ? (
               <div className="mt-6 space-y-3">
                 <p className="text-center text-xs font-medium uppercase tracking-[0.32em] text-neutral-500">
-                  Add GAT
+                  Add General Aptitude Test
                 </p>
                 <button
                   type="button"
@@ -577,7 +576,7 @@ export default function Pricing() {
                     <p className="text-xs text-neutral-600 md:text-sm">Optional add-on for Basic</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold text-neutral-900 md:text-xl">₹ 199</p>
+                    <p className="text-lg font-bold text-neutral-900 md:text-xl">Rs. 199</p>
                     <p className="text-xs text-neutral-600 md:text-sm">
                       {includeGat ? "Selected" : "Optional"}
                     </p>
@@ -586,22 +585,22 @@ export default function Pricing() {
               </div>
             ) : null}
 
-            <div className="mt-6 flex flex-col items-center gap-3 border-t border-neutral-200 pt-5">
+            <div className="mt-6 flex justify-between items-center gap-3 border-t border-neutral-200 pt-5">
               {selectedStream ? (
-                <>
-                  <p className="text-xs uppercase tracking-[0.32em] text-neutral-500">
+                <div>
+                  <p className="text-md text-neutral-500">
                     Total
                   </p>
-                  <p className="text-2xl font-bold text-neutral-900 md:text-3xl">
-                    ₹ {getDisplayPriceRupees(selectedAmountPaise)}
+                  <p className="text-lg font-bold text-neutral-900 md:text-3xl">
+                    Rs. {getDisplayPriceRupees(selectedAmountPaise)} Only
                   </p>
-                </>
+                </div>
               ) : null}
               <button
                 type="button"
                 onClick={handleCheckout}
                 disabled={!selectedStream || loadingPlanId !== null}
-                className="rounded-full bg-linear-to-br from-blue-400 to-blue-600 px-7 py-3 text-sm font-semibold text-white shadow-lg transition hover:scale-[1.02] hover:shadow-2xl disabled:cursor-not-allowed disabled:opacity-60 md:text-base"
+                className="rounded-full bg-emerald-300 border px-7 py-3 text-sm font-semibold text-black shadow-lg transition hover:scale-[1.02] hover:shadow-2xl disabled:cursor-not-allowed disabled:opacity-60 md:text-base"
               >
                 {loadingPlanId === selectedPlan.id
                   ? "Processing..."

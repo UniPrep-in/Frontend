@@ -41,8 +41,7 @@ type MockTestsClientProps = {
 
 type FilterState = {
   stream: MainStreamLabel;
-  category: ContentCategory;
-  subject: string;
+  category: ContentCategory | string;
   page: number;
 };
 
@@ -74,16 +73,18 @@ function parsePage(value?: string) {
 function normalizeInitialCategory(
   value: string | undefined,
   access: SubscriptionAccess | null,
-): ContentCategory {
-  if (
-    value === "all" ||
-    value === "main" ||
-    value === "english" ||
-    value === "gat"
-  ) {
-    if (!access || access.allowedCategories.includes(value)) {
+  subjects: string[],
+): string {
+  // Check if it's a valid base category (excluding "main")
+  if (value === "all" || value === "english" || value === "gat") {
+    if (!access || access.allowedCategories.includes(value as ContentCategory)) {
       return value;
     }
+  }
+  
+  // Check if it's a valid subject
+  if (value && subjects.includes(value)) {
+    return value;
   }
 
   return "all";
@@ -119,10 +120,6 @@ function buildUrl(pathname: string, state: FilterState) {
     params.set("category", state.category);
   }
 
-  if (state.subject) {
-    params.set("subject", state.subject);
-  }
-
   if (state.page > 1) {
     params.set("page", String(state.page));
   }
@@ -131,32 +128,39 @@ function buildUrl(pathname: string, state: FilterState) {
   return query ? `${pathname}?${query}` : pathname;
 }
 
-function normalizeSubjectForCategory(
-  category: ContentCategory,
-  stream: MainStreamLabel,
-  subject: string,
-  subjectOptionsByStream: Record<MainStreamLabel, string[]>,
-) {
-  if (category !== "main") {
-    return "";
+function getCategoryForAPI(category: string, subjects: string[]): ContentCategory {
+  // If category is a subject, return "main" for API
+  if (subjects.includes(category)) {
+    return "main";
   }
+  return category as ContentCategory;
+}
 
-  return subjectOptionsByStream[stream]?.includes(subject) ? subject : "";
+function getSubjectForAPI(category: string, subjects: string[]): string {
+  // If category is a subject, return it
+  if (subjects.includes(category)) {
+    return category;
+  }
+  return "";
 }
 
 async function fetchMockTests([
   ,
   stream,
   category,
-  subject,
+  subjects,
   page,
-]: readonly [string, MainStreamLabel, ContentCategory, string, number]) {
+]: readonly [string, MainStreamLabel, string, string[], number]) {
   const params = new URLSearchParams();
   params.set("stream", stream.toLowerCase());
-  params.set("category", category);
-
-  if (subject) {
-    params.set("subject", subject);
+  
+  const apiCategory = getCategoryForAPI(category, subjects);
+  const apiSubject = getSubjectForAPI(category, subjects);
+  
+  params.set("category", apiCategory);
+  
+  if (apiSubject) {
+    params.set("subject", apiSubject);
   }
 
   params.set("page", String(page));
@@ -189,7 +193,7 @@ function FilterTab({
       aria-pressed={active}
       className={`whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-medium transition ${
         active
-          ? "bg-linear-to-br from-blue-500 to-blue-600 text-white shadow-md"
+          ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md"
           : "bg-neutral-200 text-black hover:bg-neutral-300"
       }`}
     >
@@ -207,18 +211,21 @@ export default function MockTestsClient({
   const pathname = "/mock-tests";
   const hasAccess = Boolean(access);
   const initialStream = normalizeStreamLabel(initialParams.stream, access);
-  const initialCategory = normalizeInitialCategory(initialParams.category, access);
+  const availableSubjects = subjectOptionsByStream[initialStream] ?? [];
+  
+  const initialCategory = normalizeInitialCategory(
+    initialParams.category,
+    access,
+    availableSubjects,
+  );
+  
   const [filters, setFilters] = useState<FilterState>({
     stream: initialStream,
     category: initialCategory,
-    subject: normalizeSubjectForCategory(
-      initialCategory,
-      initialStream,
-      initialParams.subject?.trim() ?? "",
-      subjectOptionsByStream,
-    ),
     page: parsePage(initialParams.page),
   });
+
+  const currentSubjects = subjectOptionsByStream[filters.stream] ?? [];
 
   useEffect(() => {
     const nextUrl = buildUrl(pathname, filters);
@@ -236,20 +243,16 @@ export default function MockTestsClient({
         searchParams.get("stream") ?? undefined,
         access,
       );
+      const subjects = subjectOptionsByStream[stream] ?? [];
       const category = normalizeInitialCategory(
         searchParams.get("category") ?? undefined,
         access,
+        subjects,
       );
 
       setFilters({
         stream,
         category,
-        subject: normalizeSubjectForCategory(
-          category,
-          stream,
-          searchParams.get("subject")?.trim() ?? "",
-          subjectOptionsByStream,
-        ),
         page: parsePage(searchParams.get("page") ?? "1"),
       });
     };
@@ -263,29 +266,47 @@ export default function MockTestsClient({
       return;
     }
 
-    access.allowedCategories.forEach((category) => {
-      const key = ["mock-tests", filters.stream, category, "", 1] as const;
+    // Preload all categories (excluding "main") + subjects
+    const categoriesToPreload = [
+      ...access.allowedCategories.filter((c) => c !== "main"),
+      ...currentSubjects,
+    ];
+    
+    categoriesToPreload.forEach((category) => {
+      const key = ["mock-tests", filters.stream, category, currentSubjects, 1] as const;
       void mutate(key, fetchMockTests(key), {
         populateCache: true,
         revalidate: false,
       });
     });
-  }, [access, filters.stream, mutate]);
+  }, [access, filters.stream, currentSubjects, mutate]);
 
   const applyState = (nextState: FilterState) => {
     setFilters(nextState);
     window.history.pushState(null, "", buildUrl(pathname, nextState));
   };
 
-  const availableSubjects = subjectOptionsByStream[filters.stream] ?? [];
-  const showSubjectFilters = filters.category === "main";
-  const categoryOptions = access?.allowedCategories ?? [];
+  // Build filter options: All + non-main categories + all subjects
+  const allFilterOptions: { type: "category" | "subject"; value: string; label: string }[] = [
+    { type: "category", value: "all", label: CATEGORY_LABELS.all },
+    // Only include non-main categories (english, gat, etc.)
+    ...(access?.allowedCategories ?? [])
+      .filter((c) => c !== "all" && c !== "main")
+      .map((c) => ({ type: "category" as const, value: c, label: CATEGORY_LABELS[c] })),
+    // Include all subjects
+    ...currentSubjects.map((s) => ({ 
+      type: "subject" as const, 
+      value: s, 
+      label: toDisplayLabel(s) 
+    })),
+  ];
+
   const swrKey = hasAccess
     ? ([
         "mock-tests",
         filters.stream,
         filters.category,
-        filters.subject,
+        currentSubjects,
         filters.page,
       ] as const)
     : null;
@@ -305,7 +326,7 @@ export default function MockTestsClient({
   const isRefreshing = Boolean(data) && isValidating;
 
   const resetFilters = () => {
-    applyState({ ...filters, category: "all", subject: "", page: 1 });
+    applyState({ stream: filters.stream, category: "all", page: 1 });
   };
 
   if (!hasAccess || !access) {
@@ -320,10 +341,9 @@ export default function MockTestsClient({
     <>
       <section className="mb-8 rounded-3xl border border-neutral-100 bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4">
+          {/* Stream Filter */}
           <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm font-medium text-neutral-500">
-              Stream:
-            </span>
+            <span className="text-sm font-medium text-neutral-500">Stream:</span>
             {access.isSubscriber ? (
               <span className="rounded-full bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white">
                 {access.baseStreamLabel}
@@ -337,7 +357,6 @@ export default function MockTestsClient({
                     applyState({
                       stream,
                       category: "all",
-                      subject: "",
                       page: 1,
                     })
                   }
@@ -348,25 +367,25 @@ export default function MockTestsClient({
             )}
           </div>
 
+          {/* All Filters in One Row - No "Main Stream" */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <span className="mr-2 self-center text-sm font-medium text-neutral-500">
-                Category:
+              <span className="mr-2 self-center text-sm font-medium text-neutral-500 shrink-0">
+                Filter:
               </span>
-              {categoryOptions.map((category) => (
+              {allFilterOptions.map((option) => (
                 <FilterTab
-                  key={category}
-                  active={filters.category === category}
+                  key={option.value}
+                  active={filters.category === option.value}
                   onClick={() =>
                     applyState({
                       ...filters,
-                      category,
-                      subject: "",
+                      category: option.value,
                       page: 1,
                     })
                   }
                 >
-                  {CATEGORY_LABELS[category]}
+                  {option.label}
                 </FilterTab>
               ))}
             </div>
@@ -381,35 +400,6 @@ export default function MockTestsClient({
               Reset
             </button>
           </div>
-
-          {showSubjectFilters ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="mr-2 text-sm font-medium text-neutral-500">
-                Subject:
-              </span>
-              {availableSubjects.length > 0 ? (
-                availableSubjects.map((subject) => (
-                  <FilterTab
-                    key={subject}
-                    active={filters.subject === subject}
-                    onClick={() =>
-                      applyState({
-                        ...filters,
-                        subject,
-                        page: 1,
-                      })
-                    }
-                  >
-                    {toDisplayLabel(subject)}
-                  </FilterTab>
-                ))
-              ) : (
-                <span className="text-sm text-neutral-400">
-                  No subjects available for this stream
-                </span>
-              )}
-            </div>
-          ) : null}
         </div>
       </section>
 
@@ -544,7 +534,7 @@ export default function MockTestsClient({
                     }
                     className={`h-10 min-w-10 rounded-full px-3 text-sm font-semibold transition ${
                       filters.page === pageNumber
-                        ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20"
+                        ? "bg-emerald-300 text-black shadow-lg border shadow-slate-900/20"
                         : "border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                     }`}
                   >

@@ -9,7 +9,7 @@ import {
   normalizeContentStreamLabel,
 } from "@/lib/subscriptions";
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 9;
 
 type TestRow = {
   id: string;
