@@ -3,6 +3,7 @@ import Navbar from "@/app/components/ui/Navbar";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import Footer from "@/app/components/Footer";
 import {
   CheckCircle2,
   XCircle,
@@ -98,13 +99,13 @@ export default async function ResultPage({ params }: Props) {
     analytics?.reduce((sum, a) => sum + (a.time_spent || 0), 0) ?? 0;
 
   return (
-    <main className="min-h-screen bg-linear-to-br from-slate-50 via-white to-blue-50/30 py-10 px-4">
+    <main className="bg-neutral-100">
       <div>
         <Navbar />
       </div>
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-6xl mx-auto py-12">
         {/* Header */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-4">
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
             Test Submitted
           </h1>
@@ -113,57 +114,57 @@ export default async function ResultPage({ params }: Props) {
 
         {/* Score card */}
         <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/80 overflow-hidden mb-8">
-          <div className="bg-linear-to-r from-slate-900 to-slate-800 text-white px-8 py-6">
-            <p className="text-sm font-medium text-slate-300 uppercase tracking-wider">
-              Your Score
+          <div className="bg-blue-300 px-8 py-6 flex justify-center gap-2 items-center">
+            <p className="text-4xl font-semibold text-black">
+              You Scored:
             </p>
-            <p className="text-4xl md:text-5xl font-bold mt-1 tracking-tight">
-              {attempt.score != null ? attempt.score : "—"}
+            <p className="text-4xl font-bold black">
+              {attempt.score != null ? attempt.score : "—"}/{totalQuestions}
             </p>
           </div>
 
           <div className="p-6 md:p-8 space-y-6">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-100">
-                <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">
-                    Correct
+              <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-emerald-300 border">
+                <CheckCircle2 className="w-6 h-6 text-black shrink-0" />
+                <div className="min-w-0 flex items-center justify-center gap-2">
+                  <p className="text-xl font-semibold text-black">
+                    Correct:
                   </p>
-                  <p className="text-2xl font-bold text-emerald-900">
+                  <p className="text-xl font-bold text-black">
                     {correct}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-100">
-                <XCircle className="w-6 h-6 text-red-600 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-red-500 uppercase tracking-wider">
-                    Wrong
+              <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-rose-300 border">
+                <XCircle className="w-6 h-6 text-black shrink-0" />
+                <div className="min-w-0 flex items-center justify-center gap-2">
+                  <p className="text-xl font-semibold text-black">
+                    Wrong:
                   </p>
-                  <p className="text-2xl font-bold text-red-900">{wrong}</p>
+                  <p className="text-xl font-bold text-black">{wrong}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-100 border border-slate-200">
-                <Circle className="w-6 h-6 text-slate-500 shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                    Unattempted
+              <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-amber-300 border">
+                <Circle className="w-6 h-6 text-black shrink-0" />
+                <div className="min-w-0 flex items-center justify-center gap-2">
+                  <p className="text-xl font-semibold text-black">
+                    Unattempted:
                   </p>
-                  <p className="text-2xl font-bold text-slate-800">
+                  <p className="text-xl font-bold text-black">
                     {unattempted}
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
-                <div className="w-6 h-6 flex items-center justify-center shrink-0 text-blue-600 font-bold text-sm">
+              <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-blue-300 border">
+                <div className="w-6 h-6 flex items-center justify-center shrink-0 text-black font-bold text-sm">
                   %
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider">
-                    Accuracy
+                <div className="min-w-0 flex items-center justify-center gap-2">
+                  <p className="text-xl font-semibold text-black">
+                    Accuracy:
                   </p>
-                  <p className="text-2xl font-bold text-blue-900">
+                  <p className="text-xl font-bold text-black">
                     {accuracy}%
                   </p>
                 </div>
@@ -172,26 +173,26 @@ export default async function ResultPage({ params }: Props) {
 
             {/* Progress bar */}
             <div>
-              <p className="text-sm font-semibold text-slate-700 mb-3">
+              <p className="text-sm font-semibold text-black mb-3">
                 Attempt breakdown
               </p>
-              <div className="h-4 rounded-full bg-slate-200 overflow-hidden flex">
+              <div className="h-4 rounded-full bg-neutral-300 overflow-hidden flex">
                 {totalQuestions > 0 && (
                   <>
                     <div
-                      className="bg-emerald-500 transition-all duration-300"
+                      className="bg-emerald-300 transition-all duration-300"
                       style={{
                         width: `${(correct / totalQuestions) * 100}%`,
                       }}
                     />
                     <div
-                      className="bg-red-400 transition-all duration-300"
+                      className="bg-red-300 transition-all duration-300"
                       style={{
                         width: `${(wrong / totalQuestions) * 100}%`,
                       }}
                     />
                     <div
-                      className="bg-slate-300 transition-all duration-300"
+                      className="bg-neutral-300 transition-all duration-300"
                       style={{
                         width: `${(unattempted / totalQuestions) * 100}%`,
                       }}
@@ -277,10 +278,13 @@ export default async function ResultPage({ params }: Props) {
             href="/"
             className="inline-flex items-center justify-center gap-2 px-6 py-3.5 border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-colors"
           >
-            <Home className="w-4 h-4" />
-            Back to Home
+            See Leaderboards
           </Link>
         </div>
+      </div>
+
+      <div>
+        <Footer />
       </div>
     </main>
   );
