@@ -64,89 +64,34 @@ export async function POST(req: Request) {
       );
     }
 
-    // Fetch all questions for this test (id only - marks/negative_marks may not exist in DB)
-    const { data: questionsData, error: questionsError } = await supabase
-      .from("questions")
-      .select("id")
-      .eq("test_id", attempt.test_id);
+    // 🔥 NEW: Use RPC to handle scoring + answers + attempt update
+    const { error: rpcError } = await supabase.rpc("submit_test", {
+      attempt_id: attemptId,
+      answers_json: answers,
+    });
 
-    const questions = Array.isArray(questionsData) ? questionsData : [];
-    if (questions.length === 0 && questionsError) {
-      console.error("Submit test questions error:", questionsError);
+    if (rpcError) {
+      console.error("RPC submit_test error:", rpcError);
+      return NextResponse.json(
+        { error: rpcError.message || "Could not submit test" },
+        { status: 500 }
+      );
     }
 
-    // Fetch correct options (only if we have questions)
-    let correctMap: Record<string, string> = {};
-    if (questions.length > 0) {
-      const questionIds = questions.map((q) => q.id);
-      const { data: correctOptions, error: optionsError } = await supabase
-        .from("options")
-        .select("id, question_id")
-        .eq("is_correct", true)
-        .in("question_id", questionIds);
-
-      if (optionsError) {
-        console.error("Submit test options error:", optionsError);
-      }
-      if (Array.isArray(correctOptions)) {
-        correctOptions.forEach((opt) => {
-          correctMap[opt.question_id] = opt.id;
-        });
-      }
-    }
-
-    let score = 0;
-    const userAnswersToInsert: any[] = [];
+    // Build analytics (without is_correct, handled in DB)
     const analyticsToInsert: any[] = [];
 
-    for (const question of questions) {
-      const selectedOptionId = answers[question.id];
-
-      if (!selectedOptionId) continue; // unanswered
-
-      const isCorrect =
-        correctMap[question.id] &&
-        correctMap[question.id] === selectedOptionId;
-
-      const marks = (question as { marks?: number }).marks ?? 1;
-      const negativeMarks = (question as { negative_marks?: number }).negative_marks ?? 0;
-      if (isCorrect) {
-        score += marks;
-      } else {
-        score -= negativeMarks;
-      }
-
-      userAnswersToInsert.push({
-        attempt_id: attemptId,
-        question_id: question.id,
-        selected_option_id: selectedOptionId,
-        is_correct: isCorrect,
-      });
-
-      const timeSpent = Math.max(0, analytics[question.id] ?? 0);
+    for (const questionId in answers) {
+      const timeSpent = Math.max(0, analytics[questionId] ?? 0);
 
       analyticsToInsert.push({
         attempt_id: attemptId,
         user_id: user.id,
         test_id: attempt.test_id,
-        question_id: question.id,
+        question_id: questionId,
         time_spent: timeSpent,
-        is_correct: isCorrect,
+        is_correct: null,
       });
-    }
-
-    // Insert user answers
-    if (userAnswersToInsert.length > 0) {
-      const { error: insertError } = await supabase
-        .from("user_answers")
-        .insert(userAnswersToInsert);
-      if (insertError) {
-        console.error("Submit test insert error:", insertError);
-        return NextResponse.json(
-          { error: insertError.message || "Could not save answers" },
-          { status: 500 }
-        );
-      }
     }
 
     // Insert analytics (RAW) with upsert to prevent duplicates
@@ -176,26 +121,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // Update attempt score
-    const { error: updateError } = await supabase
-      .from("test_attempts")
-      .update({
-        score,
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", attemptId);
-
-    if (updateError) {
-      console.error("Submit test update error:", updateError);
-      return NextResponse.json(
-        { error: updateError.message || "Could not finalize result" },
-        { status: 500 }
-      );
-    }
-
     return NextResponse.json({
       success: true,
-      score,
+      score: null,
     });
   } catch (error) {
     console.error("Submit test error:", error);

@@ -90,6 +90,7 @@ export default async function ResultPage({ params }: Props) {
   const wrong = totalAttempted - correct;
   const totalQuestions = totalInTest ?? totalAttempted;
   const unattempted = Math.max(0, totalQuestions - totalAttempted);
+  const totalMarks = Math.imul(totalQuestions, 5);
   const accuracy =
     totalAttempted > 0
       ? Math.round((correct / totalAttempted) * 100)
@@ -119,7 +120,7 @@ export default async function ResultPage({ params }: Props) {
               You Scored:
             </p>
             <p className="text-4xl font-bold black">
-              {attempt.score != null ? attempt.score : "—"}/{totalQuestions}
+              {attempt.score != null ? attempt.score : "—"}/{totalMarks}
             </p>
           </div>
 
@@ -207,36 +208,27 @@ export default async function ResultPage({ params }: Props) {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-200 flex flex-wrap gap-x-6 gap-y-1 text-sm text-slate-600">
-              <span>
+            <div className="py-4 border-t border-b border-slate-200 flex flex-wrap justify-between items-center gap-x-6 gap-y-1 text-sm text-slate-600">
+              <span className="text-lg">
                 <strong className="text-slate-800">Total attempted:</strong>{" "}
                 {totalAttempted} of {totalQuestions} questions
               </span>
-            </div>
-          </div>
 
-          {/* Total vs Attempted - prominent strip */}
-        <div className="flex flex-col gap-4 mb-8">
-          <div className="border-t border-b border-neutral-200 px-8 py-4 overflow-hidden flex justify-between">
-            <div className="flex items-center gap-4">
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Total Questions
-                </p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {totalQuestions}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 p-4 rounded-xl bg-purple-50 border border-purple-100">
-              <p className="text-sm font-semibold text-purple-700">
-                Total Time Spent
+              <div className="">
+            <div className="p-4 flex items-center gap-2 justify-center rounded-xl bg-purple-300 border">
+              <p className="text-xl font-semibold text-black">
+                Total Time Spent:
               </p>
               <p className="text-xl font-bold text-purple-900">
                 {Math.floor(totalTime / 60)}m {totalTime % 60}s
               </p>
             </div>
           </div>
+            </div>
+          </div>
+
+          {/* Total vs Attempted - prominent strip */}
+        <div className="flex flex-col gap-4 mb-8">
           <div className="px-8 overflow-hidden">
             {analytics && analytics.length > 0 && (
               <div className="">
@@ -274,11 +266,14 @@ export default async function ResultPage({ params }: Props) {
             <ArrowLeft className="w-4 h-4" />
             Back to Tests
           </Link>
+
+
           <Link
-            href="/"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 border-2 border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-colors"
+            href={`/mock-tests/${attempt.test_id}/leaderboard`}
+            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/20"
           >
-            See Leaderboards
+            <Target className="w-4 h-4" />
+            View Leaderboard
           </Link>
         </div>
       </div>
