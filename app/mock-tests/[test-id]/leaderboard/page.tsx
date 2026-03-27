@@ -139,10 +139,10 @@ export default function LeaderboardPage() {
                 key={`skeleton-${i}`}
                 className="grid grid-cols-4 bg-neutral-200 px-4 py-3 border-b border-gray-300"
               >
-                <div className="h-4 bg-neutral-300 rounded w-10" />
-                <div className="h-4 bg-neutral-300 rounded w-24" />
-                <div className="h-4 bg-neutral-300 rounded w-12" />
-                <div className="h-4 bg-neutral-300 rounded w-12" />
+                <div className="h-4 bg-neutral-300 animate-pulse rounded w-10" />
+                <div className="h-4 bg-neutral-300 animate-pulse rounded w-24" />
+                <div className="h-4 bg-neutral-300 animate-pulse rounded w-12" />
+                <div className="h-4 bg-neutral-300 animate-pulse rounded w-12" />
               </div>
             ))}
           </>

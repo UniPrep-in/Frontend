@@ -1,20 +1,11 @@
 import type { Metadata } from "next";
-import "./globals.css";
-import SmoothScrollProvider from "./components/ui/SmoothScrollProvider";
-import { AuthProvider } from "@/providers/AuthProvider";
-import { Comfortaa } from 'next/font/google';
-
-const comfortaa = Comfortaa({
-  subsets: ['latin'],
-  weight: ['300','400','700'], // only valid weights
-  style: ['normal'],  // enable italic
-});
+import Materials from "./page";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.uniprep.in"),
 
   title: {
-    default: "Uniprep | Smart CUET Exam Preparation Platform",
+    default: "Study with wide range of curated materials",
     template: "%s | Uniprep",
   },
 
@@ -77,22 +68,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={comfortaa.className}>
-      <body
-        className="text-black"
-      >
-        <AuthProvider>
-          <SmoothScrollProvider>
-            {children}
-          </SmoothScrollProvider>
-        </AuthProvider>
-      </body>
-    </html>
-  );
+export default function MaterialsLayout(){
+    return(
+        <Materials />
+    )
 }
