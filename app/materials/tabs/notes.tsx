@@ -1,5 +1,5 @@
 "use client"
-
+import Loader from "@/app/components/ui/loader"
 import { useEffect, useState, useMemo, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import ComingSoon from "@/app/components/ui/comingSoon"
@@ -125,23 +125,16 @@ export default function Notes() {
 
   if (loading) {
     return (
-      <main className="p-6">
-        <div className="flex items-center gap-3 text-neutral-600">
-          <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-          Loading notes...
-        </div>
+      <main className="flex items-center justify-center">
+        <Loader />
       </main>
     )
   }
 
-  // Debug info - remove in production
-  console.log("Current filters:", { selectedStream, selectedSubject })
-  console.log("Total notes:", notes.length)
-
   return (
-    <main className="px-6 py-6">
+    <main className="px-6 pt-4 pb-24">
       {/* Header with Filters */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <h1 className="text-2xl text-black font-semibold">Notes</h1>
 
         {/* Filters */}
@@ -161,7 +154,7 @@ export default function Notes() {
                 }}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
                   selectedStream !== "All"
-                    ? "bg-blue-100 text-blue-700 border border-blue-200"
+                    ? "bg-blue-300 text-black border"
                     : "bg-neutral-100 text-neutral-700 border border-neutral-200 hover:bg-neutral-200"
                 }`}
               >
@@ -170,15 +163,15 @@ export default function Notes() {
               </button>
 
               {isStreamOpen && (
-                <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl border border-neutral-200 shadow-lg z-50 py-1 max-h-60 overflow-y-auto">
+                <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl border border-neutral-200 shadow-lg z-50 max-h-60 overflow-y-auto">
                   {availableStreams.map((stream) => (
                     <button
                       key={stream}
                       onClick={() => handleStreamChange(stream)}
-                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                         selectedStream === stream
-                          ? "bg-blue-50 text-blue-700 font-medium"
-                          : "text-neutral-700 hover:bg-neutral-50"
+                          ? "bg-blue-50 text-black font-medium"
+                          : "text-black hover:bg-neutral-50"
                       }`}
                     >
                       {stream}
@@ -199,7 +192,7 @@ export default function Notes() {
                 }}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
                   selectedSubject !== "All"
-                    ? "bg-green-100 text-green-700 border border-green-200"
+                    ? "bg-emerald-300 text-black border"
                     : "bg-neutral-100 text-neutral-700 border border-neutral-200 hover:bg-neutral-200"
                 }`}
               >
@@ -240,30 +233,8 @@ export default function Notes() {
         </div>
       </div>
 
-      {/* Active Filters Display */}
-      {hasActiveFilters && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {selectedStream !== "All" && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-100 text-blue-700 text-sm font-medium">
-              Stream: {selectedStream}
-              <button onClick={() => handleStreamChange("All")} className="hover:text-blue-900">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </span>
-          )}
-          {selectedSubject !== "All" && (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-100 text-green-700 text-sm font-medium">
-              Subject: {selectedSubject}
-              <button onClick={() => handleSubjectChange("All")} className="hover:text-green-900">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </span>
-          )}
-        </div>
-      )}
-
       {/* Results Count */}
-      <div className="mb-4 text-sm text-neutral-600">
+      <div className="py-4 text-sm text-neutral-600">
         Showing {filteredNotes.length} {filteredNotes.length === 1 ? "note" : "notes"}
         {notes.length > 0 && ` of ${notes.length} total`}
         {hasActiveFilters}
@@ -293,7 +264,7 @@ export default function Notes() {
           {filteredNotes.map((note) => (
             <div
               key={note.id}
-              className="p-4 border col-span-1 border-neutral-200 rounded-lg bg-white duration-300 hover:scale-105 transition"
+              className="p-4 col-span-1 shadow-lg rounded-2xl bg-white duration-300 hover:scale-105 transition"
             >
               <div className="relative w-full h-50 mb-3 rounded-md overflow-hidden">
                 <img
@@ -335,7 +306,7 @@ export default function Notes() {
                     router.push(`/viewer?file=${encodeURIComponent(path)}`)
                   }
                 }}
-                className="inline-block py-4 px-6 rounded-xl text-sm bg-blue-300 text-black border font-medium"
+                className="inline-block py-4 px-6 rounded-xl text-sm bg-purple-300 text-black border font-medium"
               >
                 View Notes
               </button>

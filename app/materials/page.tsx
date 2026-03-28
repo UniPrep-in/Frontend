@@ -17,31 +17,31 @@ export default function Materials() {
 
       <div>
         {/* Tabs */}
-        <div className="flex gap-4 px-8 pt-6">
+        <div className="flex gap-2 px-8 pt-6">
           <button
             onClick={() => setActiveTab("Flash Cards")}
-            className={`${activeTab === "Flash Cards" ? "bg-linear-to-br from-blue-500 to-blue-600 px-6 py-2 rounded-full text-white duration-300" : "bg-neutral-200 px-6 py-2 rounded-full"}`}
+            className={`${activeTab === "Flash Cards" ? "bg-blue-300 border px-6 py-2 rounded-full text-black duration-300" : "bg-neutral-200 px-6 py-2 rounded-full"}`}
           >
             Flash Cards
           </button>
 
           <button
             onClick={() => setActiveTab("Notes")}
-            className={`pb-2 ${activeTab === "Notes" ? "bg-linear-to-br from-blue-500 to-blue-600 px-6 py-2 rounded-full text-white duration-300" : "bg-neutral-200 px-6 py-2 rounded-full"}`}
+            className={`${activeTab === "Notes" ? "bg-blue-300 px-6 py-2 rounded-full text-black border duration-300" : "bg-neutral-200 px-6 py-2 rounded-full"}`}
           >
             Notes
           </button>
 
           <button
             onClick={() => setActiveTab("PYQs")}
-            className={`pb-2 ${activeTab === "PYQs" ? "bg-linear-to-br from-blue-500 to-blue-600 px-6 py-2 rounded-full text-white duration-300" : "bg-neutral-200 px-6 py-2 rounded-full"}`}
+            className={`${activeTab === "PYQs" ? "bg-blue-300 border px-6 py-2 rounded-full text-black duration-300" : "bg-neutral-200 px-6 py-2 rounded-full"}`}
           >
             PYQs
           </button>
         </div>
 
         {/* Content */}
-      <div className="p-8">
+      <div className="px-8 py-4">
         {activeTab === "Notes" && <Notes />}
         {activeTab === "Flash Cards" && <FlashCards />}
         {activeTab === "PYQs" && <Pyq />}
