@@ -262,9 +262,9 @@ export default function FlashCards() {
 
   return (
     <main>
-      <div className="flex justify-between gap-2 items-center">
+      <div className="flex gap-2 items-center">
         <button
-          className="bg-black text-white rounded-xl px-4 py-2"
+          className="bg-purple-300 border text-black rounded-xl px-4 py-2"
           onClick={() => setActiveTab("search")}
           disabled={activeTab === "search"}
         >
@@ -280,21 +280,7 @@ export default function FlashCards() {
       </div>
 
       {activeTab === "search" && (
-        <div className="bg-neutral-100 rounded-xl p-8">
-          <div className="relative p-0.5 bg-linear-to-br from-emerald-300 via-blue-300 to-purple-300 rounded-full w-fit">
-            <div className="bg-white rounded-full px-6 py-2 flex items-center gap-2 justify-center w-fit">
-              <span className="border-r pr-2">
-                <IoSearch className="text-xl" />
-              </span>
-              <input
-                type="text"
-                placeholder="Search Flashcard..."
-                value={searchTerm}
-                className="text-black outline-none flex-1 bg-transparent focus:border-transparent rounded"
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </div>
+        <div className="rounded-xl p-8">
           {loading ? (
             <div className="flex items-center justify-center">
               <Skeletal />
