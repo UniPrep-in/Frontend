@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getPlanById } from "@/lib/plans";
+import { getExpectedAmountPaiseFromOrderNotes } from "@/lib/coupons";
 import {
   getRazorpayOrder,
   getRazorpayPayment,
@@ -96,7 +97,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const expectedAmount = getPlanCheckoutAmountPaise(plan.id, includeGat);
+    const expectedAmount = getExpectedAmountPaiseFromOrderNotes(
+      order.notes,
+      getPlanCheckoutAmountPaise(plan.id, includeGat),
+    );
 
     if (
       payment.order_id !== orderId ||

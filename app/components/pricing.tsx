@@ -24,6 +24,10 @@ type CheckoutOrderResponse = {
   planName: string;
   stream: StreamKey;
   includeGat: boolean;
+  baseAmountPaise: number;
+  discountAmountPaise: number;
+  finalAmountPaise: number;
+  couponCode?: string | null;
 };
 
 type RazorpaySuccessResponse = {
@@ -42,6 +46,19 @@ type VerifyPaymentResponse = {
 type SubscriptionStatusResponse = {
   planId?: PlanId | null;
   paymentStatus?: string | null;
+};
+
+type CouponValidationResponse = {
+  valid?: boolean;
+  message?: string;
+  couponCode?: string;
+  couponId?: string;
+  discountType?: "percent" | "fixed";
+  discountValue?: number;
+  baseAmountPaise?: number;
+  discountAmountPaise?: number;
+  finalAmountPaise?: number;
+  error?: string;
 };
 
 type RazorpayInstance = {
@@ -121,6 +138,13 @@ export default function Pricing() {
   const [includeGat, setIncludeGat] = useState(false);
   const [purchasedPlanId, setPurchasedPlanId] = useState<PlanId | null>(null);
   const [purchasedPaymentStatus, setPurchasedPaymentStatus] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidationResponse | null>(null);
+  const [couponFeedback, setCouponFeedback] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
     message: string;
@@ -178,6 +202,14 @@ export default function Pricing() {
   const selectedAmountPaise = selectedPlan && selectedStream
     ? getPlanCheckoutAmountPaise(selectedPlan.id, normalizedIncludeGat)
     : 0;
+  const finalAmountPaise = appliedCoupon?.finalAmountPaise ?? selectedAmountPaise;
+
+  const resetCouponState = () => {
+    setCouponCode("");
+    setAppliedCoupon(null);
+    setCouponFeedback(null);
+    setCouponLoading(false);
+  };
 
   const getDisplayedPlanPrice = (planId: PlanId) =>
     getDisplayPriceRupees(
@@ -200,7 +232,12 @@ export default function Pricing() {
     setSelectedPlan(null);
     setSelectedStream(null);
     setIncludeGat(false);
+    resetCouponState();
   };
+
+  useEffect(() => {
+    resetCouponState();
+  }, [selectedPlan?.id, selectedStream, includeGat]);
 
   const handlePurchaseClick = (plan: PlanDefinition) => {
     if (isPlanPurchased(plan.id)) {
@@ -221,6 +258,63 @@ export default function Pricing() {
     setSelectedPlan(plan);
     setSelectedStream(null);
     setIncludeGat(false);
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!selectedPlan || !selectedStream) {
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponFeedback(null);
+
+    try {
+      const response = await fetch("/api/payments/coupons/validate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          planId: selectedPlan.id,
+          stream: selectedStream,
+          includeGat: normalizedIncludeGat,
+          couponCode,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as CouponValidationResponse | null;
+
+      if (!response.ok || !payload) {
+        throw new Error(payload?.error || CHECKOUT_ERROR_MESSAGE);
+      }
+
+      if (!payload.valid) {
+        setAppliedCoupon(null);
+        setCouponFeedback({
+          type: "error",
+          message: payload.message || "This coupon could not be applied.",
+        });
+        return;
+      }
+
+      setAppliedCoupon(payload);
+      setCouponCode(payload.couponCode || couponCode.trim().toUpperCase());
+      setCouponFeedback({
+        type: "success",
+        message: payload.message || "Coupon applied successfully.",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to validate coupon right now.";
+
+      setAppliedCoupon(null);
+      setCouponFeedback({
+        type: "error",
+        message,
+      });
+    } finally {
+      setCouponLoading(false);
+    }
   };
 
   const handleCheckout = async () => {
@@ -253,6 +347,7 @@ export default function Pricing() {
           planId: selectedPlan.id,
           stream: selectedStream,
           includeGat: normalizedIncludeGat,
+          couponCode: appliedCoupon?.couponCode,
         }),
       }).then(async (response) => {
         const payload = (await response.json().catch(() => null)) as
@@ -268,7 +363,7 @@ export default function Pricing() {
       });
 
       if (!orderResult.ok || !orderResult.payload || !("orderId" in orderResult.payload)) {
-        throw new Error(getCheckoutErrorMessage(orderResult.status));
+        throw new Error(orderResult.payload?.error || getCheckoutErrorMessage(orderResult.status));
       }
 
       const orderPayload = orderResult.payload;
@@ -292,6 +387,7 @@ export default function Pricing() {
           plan_name: orderPayload.planName,
           stream: orderPayload.stream,
           include_gat: String(orderPayload.includeGat),
+          coupon_code: orderPayload.couponCode || undefined,
         },
         theme: {
           color: "#2563eb",
@@ -504,7 +600,7 @@ export default function Pricing() {
             onClick={closeSelectionBox}
             aria-hidden="true"
           />
-          <div className="relative z-10 w-full max-w-3xl rounded-[28px] border border-neutral-200 bg-white p-5 shadow-2xl md:p-6">
+          <div className="relative z-10 w-full max-w-xl rounded-[28px] border border-neutral-200 bg-white p-4 shadow-2xl md:p-5">
             <button
               type="button"
               onClick={closeSelectionBox}
@@ -514,16 +610,16 @@ export default function Pricing() {
               <X className="h-5 w-5" />
             </button>
 
-            <div className="space-y-1.5 text-center">
+            <div className="space-y-1 text-center">
               <p className="text-xs font-medium uppercase tracking-[0.32em] text-neutral-500">
                 Choose your stream
               </p>
-              <h2 className="text-xl font-semibold text-neutral-900 md:text-2xl">
+              <h2 className="text-lg font-semibold text-neutral-900 md:text-xl">
                 Pick the stream for your {selectedPlan.planType} plan
               </h2>
             </div>
 
-            <div className="mt-6 flex flex-row gap-3 overflow-x-auto pb-2">
+            <div className="mt-5 grid gap-2.5 sm:grid-cols-3">
               {STREAM_OPTIONS.map((stream) => {
                 const isSelected = selectedStream === stream.key;
 
@@ -532,24 +628,24 @@ export default function Pricing() {
                     key={stream.key}
                     type="button"
                     onClick={() => setSelectedStream(stream.key)}
-                    className={`min-w-45 flex-1 rounded-2xl border px-4 py-4 text-left transition-all ${
+                    className={`min-w-0 rounded-2xl border px-3 py-3 text-left transition-all ${
                       isSelected
                         ? "border-emerald-500 bg-emerald-50 shadow-sm"
                         : "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-neutral-100"
                     }`}
                   >
-                    <p className="text-base font-semibold text-neutral-900 md:text-lg">
+                    <p className="text-sm font-semibold text-neutral-900 md:text-base">
                       {stream.label}
                     </p>
                     <p className="mt-1 text-xs text-neutral-500 line-through md:text-sm">
                       {formatStrikePrice(selectedPlan)}
                     </p>
-                    <p className="mt-0.5 text-xl font-bold text-neutral-900 md:text-2xl">
+                    <p className="mt-0.5 text-base font-bold text-neutral-900 md:text-lg">
                       Rs. {getDisplayPriceRupees(
                         getPlanCheckoutAmountPaise(selectedPlan.id, selectedPlan.id !== "basic"),
                       )}
                     </p>
-                    <p className="mt-1.5 text-xs text-neutral-600 md:text-sm">
+                    <p className="mt-1 text-[11px] text-neutral-600 md:text-xs">
                       {getPlanCardSubjects(selectedPlan.id)}
                     </p>
                   </button>
@@ -558,26 +654,26 @@ export default function Pricing() {
             </div>
 
             {selectedPlan.id === "basic" ? (
-              <div className="mt-6 space-y-3">
+              <div className="mt-4 space-y-2.5">
                 <p className="text-center text-xs font-medium uppercase tracking-[0.32em] text-neutral-500">
                   Add General Aptitude Test
                 </p>
                 <button
                   type="button"
                   onClick={() => setIncludeGat((current) => !current)}
-                  className={`mx-auto flex w-full max-w-sm items-center justify-between rounded-2xl border px-4 py-3.5 text-left transition-all ${
+                  className={`mx-auto flex w-full max-w-sm items-center justify-between rounded-2xl border px-4 py-2.5 text-left transition-all ${
                     includeGat
                       ? "border-emerald-500 bg-emerald-50"
                       : "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-neutral-100"
                   }`}
                 >
                   <div>
-                    <p className="text-base font-semibold text-neutral-900">GAT</p>
-                    <p className="text-xs text-neutral-600 md:text-sm">Optional add-on for Basic</p>
+                    <p className="text-sm font-semibold text-neutral-900">GAT</p>
+                    <p className="text-xs text-neutral-600">Optional add-on for Basic</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-lg font-bold text-neutral-900 md:text-xl">Rs. 199</p>
-                    <p className="text-xs text-neutral-600 md:text-sm">
+                    <p className="text-base font-bold text-neutral-900">Rs. 199</p>
+                    <p className="text-xs text-neutral-600">
                       {includeGat ? "Selected" : "Optional"}
                     </p>
                   </div>
@@ -585,14 +681,102 @@ export default function Pricing() {
               </div>
             ) : null}
 
-            <div className="mt-6 flex justify-between items-center gap-3 border-t border-neutral-200 pt-5">
+            {selectedStream ? (
+              <div className="mt-4 grid gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3.5 lg:grid-cols-[minmax(0,1fr)_190px]">
+                <div className="space-y-2.5">
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium uppercase tracking-[0.32em] text-neutral-500">
+                      Apply Coupon
+                    </p>
+                    {appliedCoupon ? (
+                      <p className="text-sm text-emerald-700">
+                        Applied code:{" "}
+                        <span className="font-semibold">{appliedCoupon.couponCode}</span>
+                      </p>
+                    ) : (
+                      <p className="text-sm text-neutral-600">
+                        Add a coupon before checkout.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(event) => {
+                        setCouponCode(event.target.value.toUpperCase());
+                        if (appliedCoupon) {
+                          setAppliedCoupon(null);
+                        }
+                        if (couponFeedback) {
+                          setCouponFeedback(null);
+                        }
+                      }}
+                      placeholder="Enter coupon code"
+                      className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-400"
+                    />
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        disabled={couponLoading || loadingPlanId !== null}
+                        className="rounded-2xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {couponLoading ? "Applying..." : "Apply Coupon"}
+                      </button>
+                      {appliedCoupon ? (
+                        <button
+                          type="button"
+                          onClick={resetCouponState}
+                          disabled={couponLoading || loadingPlanId !== null}
+                          className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          Remove Coupon
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {couponFeedback ? (
+                    <p
+                      className={`text-sm ${
+                        couponFeedback.type === "success"
+                          ? "text-emerald-700"
+                          : "text-rose-700"
+                      }`}
+                    >
+                      {couponFeedback.message}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="rounded-2xl border border-neutral-200 bg-white p-3.5">
+                  <p className="text-xs font-medium uppercase tracking-[0.24em] text-neutral-500">
+                    Price Details
+                  </p>
+                  <div className="mt-3 flex items-center justify-between text-sm text-neutral-600">
+                    <span>Original</span>
+                    <span>Rs. {getDisplayPriceRupees(selectedAmountPaise)}</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-sm text-neutral-600">
+                    <span>Discount</span>
+                    <span>
+                      - Rs. {getDisplayPriceRupees(appliedCoupon?.discountAmountPaise ?? 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-4 flex flex-col gap-3 border-t border-neutral-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
               {selectedStream ? (
                 <div>
-                  <p className="text-md text-neutral-500">
+                  <p className="text-sm text-neutral-500">
                     Total
                   </p>
-                  <p className="text-lg font-bold text-neutral-900 md:text-3xl">
-                    Rs. {getDisplayPriceRupees(selectedAmountPaise)} Only
+                  <p className="text-lg font-bold text-neutral-900 md:text-xl">
+                    Rs. {getDisplayPriceRupees(finalAmountPaise)} Only
                   </p>
                 </div>
               ) : null}
@@ -600,7 +784,7 @@ export default function Pricing() {
                 type="button"
                 onClick={handleCheckout}
                 disabled={!selectedStream || loadingPlanId !== null}
-                className="rounded-full bg-emerald-300 border px-7 py-3 text-sm font-semibold text-black shadow-lg transition hover:scale-[1.02] hover:shadow-2xl disabled:cursor-not-allowed disabled:opacity-60 md:text-base"
+                className="rounded-full bg-emerald-300 border px-6 py-2.5 text-sm font-semibold text-black shadow-lg transition hover:scale-[1.02] hover:shadow-2xl disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loadingPlanId === selectedPlan.id
                   ? "Processing..."

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { PlanId } from "@/lib/plans";
 import { createClient } from "@/lib/supabase/server";
 import { getPlanById } from "@/lib/plans";
 import { createRazorpayOrder, getRazorpayKeyId } from "@/lib/razorpay";
@@ -9,6 +10,11 @@ import {
   normalizeIncludeGat,
 } from "@/lib/subscriptions";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  buildCheckoutAmountSnapshot,
+  buildCouponSnapshotNotes,
+  validateCouponForCheckout,
+} from "@/lib/coupons";
 
 export const runtime = "nodejs";
 
@@ -32,6 +38,7 @@ export async function POST(req: Request) {
           planId?: string;
           stream?: string;
           includeGat?: boolean;
+          couponCode?: string;
         }
       | null;
     const planId = body?.planId?.trim() || "";
@@ -48,10 +55,33 @@ export async function POST(req: Request) {
       );
     }
 
-    const amountPaise = getPlanCheckoutAmountPaise(plan.id, includeGat);
+    const baseAmountPaise = getPlanCheckoutAmountPaise(plan.id, includeGat);
+    const adminSupabase = createAdminClient();
+    let appliedCoupon = null;
+
+    if (body?.couponCode) {
+      const couponResult = await validateCouponForCheckout({
+        supabase: adminSupabase,
+        couponCode: body.couponCode,
+        planId: plan.id as PlanId,
+        baseAmountPaise,
+      });
+
+      if (!couponResult.valid) {
+        return NextResponse.json(
+          { error: couponResult.message },
+          { status: 400 },
+        );
+      }
+
+      appliedCoupon = couponResult;
+    }
+
+    const amountSnapshot = buildCheckoutAmountSnapshot(baseAmountPaise, appliedCoupon);
+    const couponSnapshotNotes = buildCouponSnapshotNotes(baseAmountPaise, appliedCoupon);
 
     const order = await createRazorpayOrder({
-      amountPaise,
+      amountPaise: amountSnapshot.finalAmountPaise,
       currency: "INR",
       receipt: `${plan.id}-${Date.now()}`,
       userId: user.id,
@@ -59,9 +89,9 @@ export async function POST(req: Request) {
       planName: `${plan.planType} - ${plan.name}`,
       stream,
       includeGat,
+      extraNotes: couponSnapshotNotes,
     });
 
-    const adminSupabase = createAdminClient();
     const { error: subscriptionError } = await createPendingSubscription(
       adminSupabase,
       {
@@ -69,7 +99,7 @@ export async function POST(req: Request) {
         planType: plan.planType,
         stream,
         orderId: order.id,
-        amount: order.amount,
+        amount: amountSnapshot.finalAmountPaise,
         currency: order.currency,
         gat: includeGat,
         gateway: "razorpay",
@@ -77,6 +107,7 @@ export async function POST(req: Request) {
           planId: plan.id,
           planName: `${plan.planType} - ${plan.name}`,
           includeGat,
+          ...couponSnapshotNotes,
         },
       },
     );
@@ -98,6 +129,10 @@ export async function POST(req: Request) {
       planName: `${plan.planType} - ${plan.name}`,
       stream,
       includeGat,
+      baseAmountPaise: amountSnapshot.baseAmountPaise,
+      discountAmountPaise: amountSnapshot.discountAmountPaise,
+      finalAmountPaise: amountSnapshot.finalAmountPaise,
+      couponCode: appliedCoupon?.couponCode ?? null,
     });
   } catch (error) {
     console.error("Razorpay create-order failed", error);

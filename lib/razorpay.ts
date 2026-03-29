@@ -12,6 +12,14 @@ type RazorpayOrder = {
     plan_name?: string;
     stream?: string;
     include_gat?: string;
+    coupon_code?: string;
+    coupon_id?: string;
+    coupon_discount_type?: string;
+    coupon_discount_value?: string;
+    base_amount_paise?: string;
+    discount_amount_paise?: string;
+    final_amount_paise?: string;
+    [key: string]: string | undefined;
   };
 };
 
@@ -27,6 +35,14 @@ type RazorpayPaymentEntity = {
     plan_name?: string;
     stream?: string;
     include_gat?: string;
+    coupon_code?: string;
+    coupon_id?: string;
+    coupon_discount_type?: string;
+    coupon_discount_value?: string;
+    base_amount_paise?: string;
+    discount_amount_paise?: string;
+    final_amount_paise?: string;
+    [key: string]: string | undefined;
   };
 };
 
@@ -87,7 +103,14 @@ export async function createRazorpayOrder(input: {
   planName: string;
   stream: string;
   includeGat: boolean;
+  extraNotes?: Record<string, string | number | boolean | null | undefined>;
 }) {
+  const extraNotes = Object.fromEntries(
+    Object.entries(input.extraNotes ?? {}).flatMap(([key, value]) =>
+      value === undefined || value === null ? [] : [[key, String(value)]],
+    ),
+  );
+
   const response = await fetch(`${RAZORPAY_API_BASE}/orders`, {
     method: "POST",
     headers: {
@@ -104,6 +127,7 @@ export async function createRazorpayOrder(input: {
         plan_name: input.planName,
         stream: input.stream,
         include_gat: String(input.includeGat),
+        ...extraNotes,
       },
     }),
     cache: "no-store",
