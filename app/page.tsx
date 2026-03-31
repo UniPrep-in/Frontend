@@ -4,11 +4,11 @@ import StatsStrip from "./components/StatsStrip";
 import Grid from "./components/ui/grid";
 import ImageCarousel from "./components/ui/infiniteCarousal";
 import CuetCoverage from "./components/CuetCoverage";
-import Usp from "./components/Usp";
 import Reviews from "./components/Review";
 import Faq from "./components/faq";
 import Footer from "./components/Footer";
 import Pricing from "./components/pricing";
+import Coupon from "./components/ui/coupons";
 
 export default function Home() {
   const logos = ["/logos/du.png", "/logos/srcc.png", "/logos/jnu.png", "/logos/st.png"];
@@ -33,13 +33,15 @@ export default function Home() {
 
       <Pricing />
 
-      <Usp />
-
       <Reviews />
 
       <Faq />
 
       <Footer />
+
+      <div className="fixed bottom-0 left-1/2 z-50 w-full -translate-x-1/2 bg-black shadow-xl">
+        <Coupon />
+      </div>
     </main>
   );
 }

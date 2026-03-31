@@ -81,7 +81,7 @@ const reviews = [
           {displayedReviews.map((review) => (
             <div
               key={review.id}
-              className="bg-white rounded-2xl p-6 shadow-xl border border-neutral-100"
+              className="bg-white border-neutral-200 rounded-2xl p-6 shadow-xl border"
             >
               {/* Stars */}
               <div className="flex gap-1 mb-4">
@@ -119,7 +119,7 @@ const reviews = [
           <div className="text-center">
             <button
               onClick={() => setShowAll(!showAll)}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-linear-to-br from-blue-500 to-blue-600 border border-gray-200 rounded-full text-white hover:scale-110 duration-300"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-purple-300 border rounded-full hover:scale-110 duration-300"
             >
               {showAll ? (
                 <>
