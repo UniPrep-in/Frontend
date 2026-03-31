@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import Footer from "@/app/components/Footer";
+import Solutions from "./components/solutions";
 import {
   CheckCircle2,
   XCircle,
@@ -99,12 +100,57 @@ export default async function ResultPage({ params }: Props) {
   const totalTime =
     analytics?.reduce((sum, a) => sum + (a.time_spent || 0), 0) ?? 0;
 
+  const { data: questionsWithAnswers } = await supabase
+    .from("questions")
+    .select(`
+      id,
+      question_text,
+      question_order,
+      question_image,
+      solution,
+      options (
+        id,
+        option_text,
+        is_correct
+      ),
+      user_answers (
+        id,
+        is_correct,
+        selected_option:options!user_answers_selected_option_id_fkey (
+          id,
+          option_text
+        )
+      )
+    `)
+    .eq("test_id", attempt.test_id)
+    .eq("user_answers.attempt_id", attemptId)
+    .order("question_order", { ascending: true });
+
+  const solutionAnswers =
+    questionsWithAnswers?.map((question) => {
+      const answer = question.user_answers?.[0];
+
+      return {
+        id: answer?.id || question.id,
+        is_correct: answer?.is_correct ?? null,
+        selected_option: answer?.selected_option?.[0] || null,
+        questions: {
+          id: question.id,
+          question_text: question.question_text,
+          question_order: question.question_order,
+          question_image: question.question_image,
+          solution: question.solution,
+          options: question.options || [],
+        },
+      };
+    }) || [];
+
   return (
     <main className="bg-neutral-100">
       <div>
         <Navbar />
       </div>
-      <div className="max-w-6xl mx-auto py-12">
+      <div className="max-w-6xl mx-auto py-12 px-4">
         {/* Header */}
         <div className="text-center mb-4">
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
@@ -125,7 +171,7 @@ export default async function ResultPage({ params }: Props) {
           </div>
 
           <div className="p-6 md:p-8 space-y-6">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-emerald-300 border">
                 <CheckCircle2 className="w-6 h-6 text-black shrink-0" />
                 <div className="min-w-0 flex items-center justify-center gap-2">
@@ -255,6 +301,15 @@ export default async function ResultPage({ params }: Props) {
             )}
           </div>
         </div>
+
+          <div className="border-t border-neutral-300 mx-6 py-4">
+            <h1 className="sm:text-xl text-lg py-2">
+              Total Questions : {solutionAnswers.length}
+            </h1>
+            <Solutions
+              answers={solutionAnswers}
+            />
+          </div>
         </div>
 
         {/* Actions */}
