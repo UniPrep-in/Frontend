@@ -90,11 +90,11 @@ export default function Hero() {
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto mt-4">
             <Link
               href="/mock-tests"
-              className="group relative inline-flex items-center justify-center px-8 py-4 text-base font-semibold text-white transition-all duration-300 bg-gray-900 rounded-full hover:bg-gray-800 hover:shadow-lg hover:shadow-gray-900/25 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 overflow-hidden"
+              className="group relative inline-flex items-center justify-center px-8 py-4 text-base font-semibold transition-all duration-300 bg-emerald-300 rounded-full hover:bg-emerald-400 border hover:shadow-lg hover:shadow-gray-900/25 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 overflow-hidden"
             >
               {/* Animated shine effect */}
               <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12"
+                className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent -skew-x-12"
                 initial={{ x: "-100%" }}
                 animate={{ x: "100%" }}
                 transition={{ 
