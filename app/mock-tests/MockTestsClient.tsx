@@ -77,11 +77,14 @@ function normalizeInitialCategory(
 ): string {
   // Check if it's a valid base category (excluding "main")
   if (value === "all" || value === "english" || value === "gat") {
-    if (!access || access.allowedCategories.includes(value as ContentCategory)) {
+    if (
+      !access ||
+      access.allowedCategories.includes(value as ContentCategory)
+    ) {
       return value;
     }
   }
-  
+
   // Check if it's a valid subject
   if (value && subjects.includes(value)) {
     return value;
@@ -101,7 +104,9 @@ function normalizeStreamLabel(
       ? "Science"
       : normalized === "commerce"
         ? "Commerce"
-        : normalized === "arts" || normalized === "art" || normalized === "humanities"
+        : normalized === "arts" ||
+            normalized === "art" ||
+            normalized === "humanities"
           ? "Arts"
           : null;
 
@@ -128,7 +133,10 @@ function buildUrl(pathname: string, state: FilterState) {
   return query ? `${pathname}?${query}` : pathname;
 }
 
-function getCategoryForAPI(category: string, subjects: string[]): ContentCategory {
+function getCategoryForAPI(
+  category: string,
+  subjects: string[],
+): ContentCategory {
   // If category is a subject, return "main" for API
   if (subjects.includes(category)) {
     return "main";
@@ -144,21 +152,21 @@ function getSubjectForAPI(category: string, subjects: string[]): string {
   return "";
 }
 
-async function fetchMockTests([
-  ,
-  stream,
-  category,
-  subjects,
-  page,
-]: readonly [string, MainStreamLabel, string, string[], number]) {
+async function fetchMockTests([, stream, category, subjects, page]: readonly [
+  string,
+  MainStreamLabel,
+  string,
+  string[],
+  number,
+]) {
   const params = new URLSearchParams();
   params.set("stream", stream.toLowerCase());
-  
+
   const apiCategory = getCategoryForAPI(category, subjects);
   const apiSubject = getSubjectForAPI(category, subjects);
-  
+
   params.set("category", apiCategory);
-  
+
   if (apiSubject) {
     params.set("subject", apiSubject);
   }
@@ -212,13 +220,13 @@ export default function MockTestsClient({
   const hasAccess = Boolean(access);
   const initialStream = normalizeStreamLabel(initialParams.stream, access);
   const availableSubjects = subjectOptionsByStream[initialStream] ?? [];
-  
+
   const initialCategory = normalizeInitialCategory(
     initialParams.category,
     access,
     availableSubjects,
   );
-  
+
   const [filters, setFilters] = useState<FilterState>({
     stream: initialStream,
     category: initialCategory,
@@ -271,9 +279,15 @@ export default function MockTestsClient({
       ...access.allowedCategories.filter((c) => c !== "main"),
       ...currentSubjects,
     ];
-    
+
     categoriesToPreload.forEach((category) => {
-      const key = ["mock-tests", filters.stream, category, currentSubjects, 1] as const;
+      const key = [
+        "mock-tests",
+        filters.stream,
+        category,
+        currentSubjects,
+        1,
+      ] as const;
       void mutate(key, fetchMockTests(key), {
         populateCache: true,
         revalidate: false,
@@ -287,17 +301,25 @@ export default function MockTestsClient({
   };
 
   // Build filter options: All + non-main categories + all subjects
-  const allFilterOptions: { type: "category" | "subject"; value: string; label: string }[] = [
+  const allFilterOptions: {
+    type: "category" | "subject";
+    value: string;
+    label: string;
+  }[] = [
     { type: "category", value: "all", label: CATEGORY_LABELS.all },
     // Only include non-main categories (english, gat, etc.)
     ...(access?.allowedCategories ?? [])
       .filter((c) => c !== "all" && c !== "main")
-      .map((c) => ({ type: "category" as const, value: c, label: CATEGORY_LABELS[c] })),
+      .map((c) => ({
+        type: "category" as const,
+        value: c,
+        label: CATEGORY_LABELS[c],
+      })),
     // Include all subjects
-    ...currentSubjects.map((s) => ({ 
-      type: "subject" as const, 
-      value: s, 
-      label: toDisplayLabel(s) 
+    ...currentSubjects.map((s) => ({
+      type: "subject" as const,
+      value: s,
+      label: toDisplayLabel(s),
     })),
   ];
 
@@ -332,7 +354,9 @@ export default function MockTestsClient({
   if (!hasAccess || !access) {
     return (
       <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center text-slate-600">
-        <p className="mb-2 text-lg font-medium">Please sign in to view mock tests</p>
+        <p className="mb-2 text-lg font-medium">
+          Please sign in to view mock tests
+        </p>
       </div>
     );
   }
@@ -340,12 +364,14 @@ export default function MockTestsClient({
   return (
     <>
       <section className="mb-8 rounded-3xl border border-neutral-100 bg-white p-4 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           {/* Stream Filter */}
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm font-medium text-neutral-500">Stream:</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-black">
+              Stream:
+            </span>
             {access.isSubscriber ? (
-              <span className="rounded-full bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white">
+              <span className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white">
                 {access.baseStreamLabel}
               </span>
             ) : (
@@ -368,33 +394,36 @@ export default function MockTestsClient({
           </div>
 
           {/* All Filters in One Row - No "Main Stream" */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <span className="mr-2 self-center text-sm font-medium text-neutral-500 shrink-0">
-                Filter:
+          <div className="flex items-center justify-between sm:gap-4 gap-2">
+            <div className="flex items-center gap-3 pb-1">
+              <span className="text-sm font-medium text-black">
+                Subject:
               </span>
-              {allFilterOptions.map((option) => (
-                <FilterTab
-                  key={option.value}
-                  active={filters.category === option.value}
-                  onClick={() =>
-                    applyState({
-                      ...filters,
-                      category: option.value,
-                      page: 1,
-                    })
-                  }
-                >
-                  {option.label}
-                </FilterTab>
-              ))}
+              <select
+                value={filters.category}
+                onChange={(e) =>
+                  applyState({
+                    ...filters,
+                    category: e.target.value,
+                    page: 1,
+                  })
+                }
+                className="px-2 py-2 sm:text-sm text-xs border bg-blue-300 border-black rounded-md 
+               focus:outline-none cursor-pointer"
+              >
+                {allFilterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <button
               type="button"
               onClick={resetFilters}
               disabled={filters.category === "all"}
-              className="inline-flex shrink-0 items-center gap-2 rounded-full border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex shrink-0 items-center gap-2 rounded-full border border-neutral-200 px-4 py-2 sm:text-sm text-xs font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RotateCcw className="h-4 w-4" />
               Reset
@@ -422,7 +451,9 @@ export default function MockTestsClient({
 
       {error ? (
         <div className="rounded-3xl border border-rose-200 bg-rose-50 px-6 py-10 text-center text-rose-700">
-          <p className="text-lg font-semibold">We could not load these mocks.</p>
+          <p className="text-lg font-semibold">
+            We could not load these mocks.
+          </p>
           <p className="mt-2 text-sm">
             {error.message || "Please try a different filter combination."}
           </p>
@@ -529,9 +560,7 @@ export default function MockTestsClient({
                   <button
                     key={pageNumber}
                     type="button"
-                    onClick={() =>
-                      applyState({ ...filters, page: pageNumber })
-                    }
+                    onClick={() => applyState({ ...filters, page: pageNumber })}
                     className={`h-10 min-w-10 rounded-full px-3 text-sm font-semibold transition ${
                       filters.page === pageNumber
                         ? "bg-emerald-300 text-black shadow-lg border shadow-slate-900/20"
