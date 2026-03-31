@@ -7,27 +7,27 @@ import Link from "next/link";
 const coverageItems = [
     {
         title: "Domain Subjects",
-        icon: <FaGlobeAmericas className="text-blue-600 text-3xl" />,
+        icon: <FaGlobeAmericas className="text-black text-2xl" />,
         description: "Complete syllabus coverage for Science, Commerce & Humanities.",
     },
     {
         title: "English Language",
-        icon: <FaLanguage className="text-indigo-600 text-3xl" />,
+        icon: <FaLanguage className="text-black text-2xl" />,
         description: "Vocabulary, Grammar & Reading Comprehension mastery.",
     },
     {
         title: "General Test (GAT)",
-        icon: <FaListUl className="text-blue-600 text-3xl" />,
+        icon: <FaListUl className="text-black text-2xl" />,
         description: "Quantitative Aptitude, Logical Reasoning & General Awareness.",
     },
     {
         title: "Previous Year Questions",
-        icon: <FaHistory className="text-indigo-600 text-3xl" />,
+        icon: <FaHistory className="text-black text-2xl" />,
         description: "Real questions from 2022, 2023, and 2024 CUET papers.",
     },
     {
         title: "Structured Mock Series",
-        icon: <FaCheckCircle className="text-blue-600 text-3xl" />,
+        icon: <FaCheckCircle className="text-black text-2xl" />,
         description: "Subject-wise and Full-length mocks based on latest NTA pattern.",
     },
 ];
@@ -107,14 +107,11 @@ export default function CuetCoverage() {
                     animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
                     transition={{ duration: 0.6, ease: "easeOut" }}
                 >
-                    <h2 className="text-blue-600 font-bold tracking-wider uppercase text-sm mb-4">
-                        All-in-One Prep
-                    </h2>
                     <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 tracking-tight mb-6">
                         Complete CUET Coverage
                     </h1>
                     <p className="text-xl text-gray-600 font-medium">
-                        Everything in one place.
+                        Everything at one place.
                     </p>
                 </motion.div>
 
@@ -140,7 +137,7 @@ export default function CuetCoverage() {
                             style={{ transformStyle: "preserve-3d" }}
                         >
                             <motion.div 
-                                className="p-4 rounded-2xl bg-gray-50 group-hover:bg-blue-50 w-fit transition-colors mb-6"
+                                className="p-4 rounded-2xl bg-yellow-300 w-fit transition-colors mb-6"
                                 whileHover={{ rotate: [0, -10, 10, 0], transition: { duration: 0.5 } }}
                             >
                                 {item.icon}
@@ -157,13 +154,13 @@ export default function CuetCoverage() {
                             scale: 1.05,
                             transition: { duration: 0.3 }
                         }}
-                        className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-3xl shadow-xl flex flex-col justify-center items-center text-center text-white lg:col-span-1"
+                        className="bg-linear-to-br from-blue-300 to-blue-400 p-8 rounded-3xl border shadow-xl flex flex-col justify-center items-center text-center text-neutral-800 lg:col-span-1"
                     >
-                        <h3 className="text-2xl font-bold mb-4">Ready to start?</h3>
+                        <h3 className="text-2xl text-black font-bold mb-4">Ready to start?</h3>
                         <p className="opacity-90 mb-6">Get access to all subjects and mocks instantly.</p>
                         <Link 
                             href="/auth" 
-                            className="bg-white text-blue-600 px-8 py-3 rounded-full font-bold hover:bg-opacity-90 transition-all shadow-lg text-center block w-fit transform hover:scale-105 active:scale-95"
+                            className="bg-emerald-300 text-black border px-8 py-3 rounded-full font-bold hover:bg-opacity-90 transition-all shadow-lg text-center block w-fit transform hover:scale-105 active:scale-95"
                         >
                             Enroll Now
                         </Link>
