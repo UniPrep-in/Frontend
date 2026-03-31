@@ -65,13 +65,13 @@ export default function LeaderboardPage() {
             <Navbar />
         </div>
 
-        <div className="mx-auto max-w-6xl py-12">
+        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
             {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Leaderboard</h1>
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <h1 className="text-2xl font-bold sm:text-3xl">Leaderboard</h1>
 
         {currentUser && (
-          <div className="bg-emerald-300 border text-black rounded-xl px-6 py-4 flex gap-2 justify-between">
+          <div className="flex w-full items-center justify-between gap-2 rounded-xl border bg-emerald-300 px-4 py-3 text-black sm:w-fit sm:px-6 sm:py-4">
             <div>Your Rank</div>
             <div>
               #
@@ -81,11 +81,11 @@ export default function LeaderboardPage() {
         )}
 
         {/* Filter */}
-        <div className="flex gap-2">
+        <div className="flex w-full gap-2 sm:w-fit">
           <button
             onClick={() => setFilter("today")}
-            className={`px-6 py-4 rounded ${
-              filter === "today" ? "bg-blue-300 border rounded-xl text-black" : "bg-gray-800"
+            className={`w-full rounded px-4 py-3 text-sm sm:w-auto sm:px-6 sm:py-4 sm:text-base ${
+              filter === "today" ? "bg-blue-300 border rounded-xl text-black" : ""
             }`}
           >
             Today, Resets at 12:00 IST
@@ -94,8 +94,8 @@ export default function LeaderboardPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-black rounded-2xl overflow-hidden">
-        <div className="grid grid-cols-4 px-4 py-3 border-b border-white text-white text-sm">
+      <div className="overflow-x-auto rounded-2xl border border-neutral-200 bg-white">
+        <div className="grid min-w-[640px] grid-cols-4 border-b border-neutral-800 bg-black px-4 py-3 text-sm text-white">
           <div>Rank</div>
           <div>User</div>
           <div>Score</div>
@@ -103,9 +103,9 @@ export default function LeaderboardPage() {
         </div>
 
         {loading ? (
-          <div className="p-6 text-center text-gray-400">Loading leaderboard...</div>
+          <div className="p-6 text-center text bg-white">Loading leaderboard...</div>
         ) : data.length === 0 ? (
-          <div className="p-6 text-center text-gray-400">
+          <div className="p-6 text-center text-gray-500 bg-white">
             No attempts yet. Be the first to take this test
           </div>
         ) : (
@@ -113,7 +113,7 @@ export default function LeaderboardPage() {
             {data.slice(0, 10).map((row) => (
               <div
                 key={row.user_id}
-                className={`grid grid-cols-4 px-4 py-3 border-b border-gray-800 ${
+                className={`grid min-w-[640px] grid-cols-4 border-b border-gray-200 bg-white px-4 py-3 ${
                   row.user_id === currentUserId
                     ? "bg-neutral-200 border-neutral-300"
                     : ""
@@ -137,7 +137,7 @@ export default function LeaderboardPage() {
             {Array.from({ length: Math.max(0, 10 - data.length) }).map((_, i) => (
               <div
                 key={`skeleton-${i}`}
-                className="grid grid-cols-4 bg-neutral-200 px-4 py-3 border-b border-gray-300"
+                className="grid min-w-[640px] grid-cols-4 border-b border-gray-300 bg-neutral-200 px-4 py-3"
               >
                 <div className="h-4 bg-neutral-300 animate-pulse rounded w-10" />
                 <div className="h-4 bg-neutral-300 animate-pulse rounded w-24" />
