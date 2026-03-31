@@ -49,16 +49,6 @@ export const metadata: Metadata = {
 creator: "Uniprep",
 publisher: "Uniprep",
 
-other: {
-  lead_engineer: "Sohan Rout",
-  frontend_engineer: "Sohan Rout",
-  design_engineer: "Sohan Rout",
-  contributors: "Akash Kumar, Rahul, Nishtha, Arya",
-  linkedin: "https://www.linkedin.com/in/sohan-rout/",
-  github: "https://github.com/Sohan-Rout",
-  twitter: "https://x.com/SohanRout06",
-},
-
   openGraph: {
     title: "Uniprep | Smart CUET Exam Preparation Platform",
     description:
