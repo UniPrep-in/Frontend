@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getPlanById } from "@/lib/plans";
-import { getExpectedAmountPaiseFromOrderNotes } from "@/lib/coupons";
+import {
+  getExpectedAmountPaiseFromOrderNotes,
+  recordCouponMetricsForSuccessfulPayment,
+} from "@/lib/coupons";
 import {
   getRazorpayOrder,
   getRazorpayPayment,
@@ -130,6 +133,23 @@ export async function POST(req: Request) {
       console.error("Failed to verify subscription payment", subscriptionError);
       return NextResponse.json(
         { error: "Unable to verify payment right now" },
+        { status: 500 },
+      );
+    }
+
+    const { error: couponMetricsError } =
+      await recordCouponMetricsForSuccessfulPayment({
+        supabase: adminSupabase,
+        userId: user.id,
+        orderId,
+        notes: order.notes,
+        fallbackAmountPaise: expectedAmount,
+      });
+
+    if (couponMetricsError) {
+      console.error("Failed to record coupon metrics after payment verification", couponMetricsError);
+      return NextResponse.json(
+        { error: "Payment was verified, but coupon metrics could not be saved. Please retry once." },
         { status: 500 },
       );
     }

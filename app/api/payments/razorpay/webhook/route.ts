@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getPlanById } from "@/lib/plans";
-import { getExpectedAmountPaiseFromOrderNotes } from "@/lib/coupons";
+import {
+  getExpectedAmountPaiseFromOrderNotes,
+  recordCouponMetricsForSuccessfulPayment,
+} from "@/lib/coupons";
 import {
   getRazorpayOrder,
   getRazorpayPayment,
@@ -141,6 +144,23 @@ export async function POST(req: Request) {
 
     if (subscriptionError) {
       console.error("Failed to mark subscription verified from webhook", subscriptionError);
+      return NextResponse.json(
+        { error: "Unable to process webhook" },
+        { status: 500 },
+      );
+    }
+
+    const { error: couponMetricsError } =
+      await recordCouponMetricsForSuccessfulPayment({
+        supabase: adminSupabase,
+        userId,
+        orderId,
+        notes: order.notes,
+        fallbackAmountPaise: expectedAmount,
+      });
+
+    if (couponMetricsError) {
+      console.error("Failed to record coupon metrics from webhook", couponMetricsError);
       return NextResponse.json(
         { error: "Unable to process webhook" },
         { status: 500 },

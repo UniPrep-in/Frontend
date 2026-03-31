@@ -41,6 +41,15 @@ type ValidateCouponForCheckoutInput = {
   baseAmountPaise: number;
 };
 
+type CouponOrderNotes = {
+  coupon_id?: string;
+  final_amount_paise?: string;
+} | null | undefined;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function getDatePart(
   parts: Intl.DateTimeFormatPart[],
   type: "day" | "month" | "year",
@@ -120,6 +129,56 @@ export function getExpectedAmountPaiseFromOrderNotes(
   }
 
   return fallbackAmountPaise;
+}
+
+function getCouponRevenueValue(amountPaise: number) {
+  return Math.max(0, Number((amountPaise / 100).toFixed(2)));
+}
+
+export async function recordCouponMetricsForSuccessfulPayment(input: {
+  supabase: SupabaseClient;
+  userId: string;
+  orderId: string;
+  notes: CouponOrderNotes;
+  fallbackAmountPaise: number;
+}) {
+  const couponId = input.notes?.coupon_id?.trim() ?? "";
+
+  if (!couponId) {
+    return { data: false, error: null };
+  }
+
+  const couponRevenue = getCouponRevenueValue(
+    getExpectedAmountPaiseFromOrderNotes(input.notes, input.fallbackAmountPaise),
+  );
+
+  const rpcParams = {
+    p_user_id: input.userId,
+    p_order_id: input.orderId,
+    p_coupon_id: couponId,
+    p_coupon_revenue: couponRevenue,
+  };
+
+  let lastResult:
+    | Awaited<ReturnType<typeof input.supabase.rpc>>
+    | null = null;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    lastResult = await input.supabase.rpc(
+      "record_coupon_metrics_for_subscription",
+      rpcParams,
+    );
+
+    if (!lastResult.error) {
+      return lastResult;
+    }
+
+    if (attempt < 2) {
+      await sleep(150 * (attempt + 1));
+    }
+  }
+
+  return lastResult ?? { data: null, error: null };
 }
 
 export async function validateCouponForCheckout(
