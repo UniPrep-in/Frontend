@@ -28,7 +28,27 @@ export const metadata: Metadata = {
     "How to crack CUET 2026 with smart practice",
   ],
 
-  authors: [{ name: "Uniprep" }],
+authors: [
+  { name: "Uniprep", url: "https://www.uniprep.in" },
+  { name: "Sohan Rout", url: "https://asccentify-studio.com" },
+  { name: "Akash Kumar" },
+  { name: "Rahul" },
+  { name: "Nishtha" },
+  { name: "Arya" },
+],
+
+creator: "Uniprep",
+publisher: "Uniprep",
+
+other: {
+  lead_engineer: "Sohan Rout",
+  frontend_engineer: "Sohan Rout",
+  design_engineer: "Sohan Rout",
+  contributors: "Akash Kumar, Rahul, Nishtha, Arya",
+  linkedin: "https://www.linkedin.com/in/sohan-rout/",
+  github: "https://github.com/Sohan-Rout",
+  twitter: "https://x.com/SohanRout06",
+},
 
   openGraph: {
     title: "Uniprep | Smart CUET Exam Preparation Platform",
@@ -56,12 +76,6 @@ export const metadata: Metadata = {
     images: ["/og/og1.png"],
   },
 
-  other: {
-    "og:image:secure_url": "/og/og1.png",
-    "og:image:type": "image/png",
-    "og:image:width": "1200",
-    "og:image:height": "630",
-  },
 
   icons: {
     icon: "/favicon.ico",
