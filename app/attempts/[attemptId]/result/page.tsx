@@ -1,341 +1,179 @@
-import { redirect } from "next/navigation";
-import Navbar from "@/app/components/ui/Navbar";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
 import Link from "next/link";
-import Footer from "@/app/components/Footer";
-import Solutions from "./components/solutions";
 import {
-  CheckCircle2,
-  XCircle,
-  Circle,
   ArrowLeft,
-  Home,
-  FileQuestion,
+  BookOpenCheck,
+  CheckCircle2,
+  Circle,
+  Clock3,
   Target,
+  XCircle,
 } from "lucide-react";
+
+import Footer from "@/app/components/Footer";
+import Navbar from "@/app/components/ui/Navbar";
+
+import { getAttemptReviewData } from "../review-data";
 
 interface Props {
   params: Promise<{ attemptId: string }>;
 }
 
 export default async function ResultPage({ params }: Props) {
-  const resolvedParams = await params;
-  const attemptId = resolvedParams.attemptId;
-
-  const cookieStore = await cookies();
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll() {},
-      },
-    }
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/auth");
-
-  const { data: attempt } = await supabase
-    .from("test_attempts")
-    .select("*")
-    .eq("id", attemptId)
-    .eq("user_id", user.id)
-    .single();
-
-  if (!attempt) redirect("/mock-tests");
-
-  if (!attempt.completed_at) {
-    redirect("/mock-tests");
-  }
-
-  let testTitle = "Here is Your Result";
-  const { data: test } = await supabase
-    .from("tests")
-    .select("title, name")
-    .eq("id", attempt.test_id)
-    .maybeSingle();
-  if (test) {
-    testTitle =
-      (test as { title?: string; name?: string }).title ??
-      (test as { title?: string; name?: string }).name ??
-      testTitle;
-  }
-
-  const { data: answers } = await supabase
-    .from("user_answers")
-    .select("is_correct")
-    .eq("attempt_id", attemptId);
-
-  const { data: analytics } = await supabase
-    .from("question_analytics")
-    .select("question_id, time_spent")
-    .eq("attempt_id", attemptId)
-    .eq("user_id", user.id);
-
-  const { count: totalInTest } = await supabase
-    .from("questions")
-    .select("*", { count: "exact", head: true })
-    .eq("test_id", attempt.test_id);
-
-  const totalAttempted = answers?.length ?? 0;
-  const correct = answers?.filter((a) => a.is_correct).length ?? 0;
-  const wrong = totalAttempted - correct;
-  const totalQuestions = totalInTest ?? totalAttempted;
-  const unattempted = Math.max(0, totalQuestions - totalAttempted);
-  const totalMarks = Math.imul(totalQuestions, 5);
-  const accuracy =
-    totalAttempted > 0
-      ? Math.round((correct / totalAttempted) * 100)
-      : 0;
-
-  const totalTime =
-    analytics?.reduce((sum, a) => sum + (a.time_spent || 0), 0) ?? 0;
-
-  const { data: questionsWithAnswers } = await supabase
-    .from("questions")
-    .select(`
-      id,
-      question_text,
-      question_order,
-      question_image,
-      solution,
-      options (
-        id,
-        option_text,
-        is_correct
-      ),
-      user_answers (
-        id,
-        is_correct,
-        selected_option:options!user_answers_selected_option_id_fkey (
-          id,
-          option_text
-        )
-      )
-    `)
-    .eq("test_id", attempt.test_id)
-    .eq("user_answers.attempt_id", attemptId)
-    .order("question_order", { ascending: true });
-
-  const solutionAnswers =
-    questionsWithAnswers?.map((question) => {
-      const answer = question.user_answers?.[0];
-
-      return {
-        id: answer?.id || question.id,
-        is_correct: answer?.is_correct ?? null,
-        selected_option: answer?.selected_option?.[0] || null,
-        questions: {
-          id: question.id,
-          question_text: question.question_text,
-          question_order: question.question_order,
-          question_image: question.question_image,
-          solution: question.solution,
-          options: question.options || [],
-        },
-      };
-    }) || [];
+  const { attemptId } = await params;
+  const reviewData = await getAttemptReviewData(attemptId);
 
   return (
     <main className="bg-neutral-100">
-      <div>
-        <Navbar />
-      </div>
-      <div className="max-w-6xl mx-auto py-12 px-4">
-        {/* Header */}
-        <div className="text-center mb-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">
+      <Navbar />
+
+      <div className="mx-auto max-w-6xl px-4 py-12">
+        <div className="mb-4 text-center">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
             Test Submitted
           </h1>
-          <p className="text-slate-500 mt-1 font-medium">{testTitle}</p>
+          <p className="mt-1 font-medium text-slate-500">{reviewData.testTitle}</p>
         </div>
 
-        {/* Score card */}
-        <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/80 overflow-hidden mb-8">
-          <div className="bg-blue-300 px-8 py-6 flex justify-center gap-2 items-center">
-            <p className="text-4xl font-semibold text-black">
-              You Scored:
-            </p>
-            <p className="text-4xl font-bold black">
-              {attempt.score != null ? attempt.score : "—"}/{totalMarks}
+        <div className="mb-8 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-200/50">
+          <div className="flex justify-center gap-2 bg-blue-300 px-8 py-6">
+            <p className="text-4xl font-semibold text-black">You Scored:</p>
+            <p className="text-4xl font-bold text-black">
+              {reviewData.score != null ? reviewData.score : "—"}/{reviewData.totalMarks}
             </p>
           </div>
 
-          <div className="p-6 md:p-8 space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-emerald-300 border">
-                <CheckCircle2 className="w-6 h-6 text-black shrink-0" />
-                <div className="min-w-0 flex items-center justify-center gap-2">
-                  <p className="text-xl font-semibold text-black">
-                    Correct:
-                  </p>
-                  <p className="text-xl font-bold text-black">
-                    {correct}
-                  </p>
+          <div className="space-y-6 p-6 md:p-8">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+              <div className="flex items-center justify-center gap-3 rounded-xl border bg-emerald-300 p-4">
+                <CheckCircle2 className="h-6 w-6 shrink-0 text-black" />
+                <div className="flex min-w-0 items-center justify-center gap-2">
+                  <p className="text-xl font-semibold text-black">Correct:</p>
+                  <p className="text-xl font-bold text-black">{reviewData.correct}</p>
                 </div>
               </div>
-              <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-rose-300 border">
-                <XCircle className="w-6 h-6 text-black shrink-0" />
-                <div className="min-w-0 flex items-center justify-center gap-2">
-                  <p className="text-xl font-semibold text-black">
-                    Wrong:
-                  </p>
-                  <p className="text-xl font-bold text-black">{wrong}</p>
+              <div className="flex items-center justify-center gap-3 rounded-xl border bg-rose-300 p-4">
+                <XCircle className="h-6 w-6 shrink-0 text-black" />
+                <div className="flex min-w-0 items-center justify-center gap-2">
+                  <p className="text-xl font-semibold text-black">Wrong:</p>
+                  <p className="text-xl font-bold text-black">{reviewData.wrong}</p>
                 </div>
               </div>
-              <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-amber-300 border">
-                <Circle className="w-6 h-6 text-black shrink-0" />
-                <div className="min-w-0 flex items-center justify-center gap-2">
-                  <p className="text-xl font-semibold text-black">
-                    Unattempted:
-                  </p>
-                  <p className="text-xl font-bold text-black">
-                    {unattempted}
-                  </p>
+              <div className="flex items-center justify-center gap-3 rounded-xl border bg-amber-300 p-4">
+                <Circle className="h-6 w-6 shrink-0 text-black" />
+                <div className="flex min-w-0 items-center justify-center gap-2">
+                  <p className="text-xl font-semibold text-black">Unattempted:</p>
+                  <p className="text-xl font-bold text-black">{reviewData.unattempted}</p>
                 </div>
               </div>
-              <div className="flex items-center justify-center gap-3 p-4 rounded-xl bg-blue-300 border">
-                <div className="w-6 h-6 flex items-center justify-center shrink-0 text-black font-bold text-sm">
+              <div className="flex items-center justify-center gap-3 rounded-xl border bg-blue-300 p-4">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center text-sm font-bold text-black">
                   %
                 </div>
-                <div className="min-w-0 flex items-center justify-center gap-2">
-                  <p className="text-xl font-semibold text-black">
-                    Accuracy:
-                  </p>
-                  <p className="text-xl font-bold text-black">
-                    {accuracy}%
-                  </p>
+                <div className="flex min-w-0 items-center justify-center gap-2">
+                  <p className="text-xl font-semibold text-black">Accuracy:</p>
+                  <p className="text-xl font-bold text-black">{reviewData.accuracy}%</p>
                 </div>
               </div>
             </div>
 
-            {/* Progress bar */}
             <div>
-              <p className="text-sm font-semibold text-black mb-3">
-                Attempt breakdown
-              </p>
-              <div className="h-4 rounded-full bg-neutral-300 overflow-hidden flex">
-                {totalQuestions > 0 && (
+              <p className="mb-3 text-sm font-semibold text-black">Attempt breakdown</p>
+              <div className="flex h-4 overflow-hidden rounded-full bg-neutral-300">
+                {reviewData.totalQuestions > 0 ? (
                   <>
                     <div
                       className="bg-emerald-300 transition-all duration-300"
                       style={{
-                        width: `${(correct / totalQuestions) * 100}%`,
+                        width: `${(reviewData.correct / reviewData.totalQuestions) * 100}%`,
                       }}
                     />
                     <div
                       className="bg-red-300 transition-all duration-300"
                       style={{
-                        width: `${(wrong / totalQuestions) * 100}%`,
+                        width: `${(reviewData.wrong / reviewData.totalQuestions) * 100}%`,
                       }}
                     />
                     <div
                       className="bg-neutral-300 transition-all duration-300"
                       style={{
-                        width: `${(unattempted / totalQuestions) * 100}%`,
+                        width: `${(reviewData.unattempted / reviewData.totalQuestions) * 100}%`,
                       }}
                     />
                   </>
-                )}
+                ) : null}
               </div>
-              <div className="flex justify-between text-xs text-slate-500 mt-2 font-medium">
+              <div className="mt-2 flex justify-between text-xs font-medium text-slate-500">
                 <span>Correct</span>
                 <span>Wrong</span>
                 <span>Unattempted</span>
               </div>
             </div>
 
-            <div className="py-4 border-t border-b border-slate-200 flex flex-wrap justify-between items-center gap-x-6 gap-y-1 text-sm text-slate-600">
+            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-y border-slate-200 py-4 text-sm text-slate-600">
               <span className="text-lg">
                 <strong className="text-slate-800">Total attempted:</strong>{" "}
-                {totalAttempted} of {totalQuestions} questions
+                {reviewData.totalAttempted} of {reviewData.totalQuestions} questions
               </span>
 
-              <div className="">
-            <div className="p-4 flex items-center gap-2 justify-center rounded-xl bg-purple-300 border">
-              <p className="text-xl font-semibold text-black">
-                Total Time Spent:
-              </p>
-              <p className="text-xl font-bold text-purple-900">
-                {Math.floor(totalTime / 60)}m {totalTime % 60}s
-              </p>
-            </div>
-          </div>
-            </div>
-          </div>
-
-          {/* Total vs Attempted - prominent strip */}
-        <div className="flex flex-col gap-4 mb-8">
-          <div className="px-8 overflow-hidden">
-            {analytics && analytics.length > 0 && (
-              <div className="">
-                <p className="text-lg font-semibold text-black my-3">
-                  Time Spent on each attempted Question
-                </p>
-                <div className="overflow-y-auto space-y-2">
-                  {analytics.map((item, index) => (
-                    <div
-                      key={item.question_id}
-                      className="flex items-center justify-between px-4 py-2 rounded-lg bg-slate-50 border border-slate-200 text-sm"
-                    >
-                      <span className="text-slate-600">
-                        Question {index + 1}
-                      </span>
-                      <span className="font-semibold text-slate-900">
-                        {Math.floor(item.time_spent / 60)}m{" "}
-                        {item.time_spent % 60}s
-                      </span>
-                    </div>
-                  ))}
+              <div className="rounded-xl border bg-purple-300 p-4">
+                <div className="flex items-center justify-center gap-2">
+                  <Clock3 className="h-5 w-5 text-black" />
+                  <p className="text-xl font-semibold text-black">Total Time Spent:</p>
+                  <p className="text-xl font-bold text-purple-900">
+                    {Math.floor(reviewData.totalTime / 60)}m {reviewData.totalTime % 60}s
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 px-6 py-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                    Review
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-slate-900">
+                    Review every answer in a focused solutions space
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Jump question by question to compare your response with the correct answer and explanation.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Link
+                    href={`/attempts/${reviewData.attemptId}/solutions`}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    <BookOpenCheck className="h-4 w-4" />
+                    View Solutions
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-          <div className="border-t border-neutral-300 mx-6 py-4">
-            <h1 className="sm:text-xl text-lg py-2">
-              Total Questions : {solutionAnswers.length}
-            </h1>
-            <Solutions
-              answers={solutionAnswers}
-            />
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <div className="flex flex-col justify-center gap-3 sm:flex-row">
           <Link
             href="/mock-tests"
-            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3.5 font-semibold text-white shadow-lg shadow-slate-900/20 transition-colors hover:bg-slate-800"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
             Back to Tests
           </Link>
 
-
           <Link
-            href={`/mock-tests/${attempt.test_id}/leaderboard`}
-            className="inline-flex items-center justify-center gap-2 px-6 py-3.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/20"
+            href={`/mock-tests/${reviewData.testId}/leaderboard`}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-600/20 transition-colors hover:bg-blue-500"
           >
-            <Target className="w-4 h-4" />
+            <Target className="h-4 w-4" />
             View Leaderboard
           </Link>
         </div>
       </div>
 
-      <div>
-        <Footer />
-      </div>
+      <Footer />
     </main>
   );
 }

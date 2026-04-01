@@ -227,9 +227,9 @@ export default function TestEngine({
     <div className="flex flex-col md:flex-row bg-gray-50 min-h-screen">
       {/* Submit full-screen loader */}
       {submitting && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/95 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/70 backdrop-blur-[2px]">
           <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
-          <p className="mt-4 text-gray-600 font-medium">Submitting your test…</p>
+          <p className="mt-4 text-gray-600 font-medium">Submitting your test...</p>
           <p className="text-sm text-gray-500">Please wait</p>
         </div>
       )}
@@ -287,7 +287,8 @@ export default function TestEngine({
             {currentIndex === questions.length - 1 ? (
               <button
                 onClick={() => setShowSubmitModal(true)}
-                className="px-6 py-4 bg-emerald-500 text-white sm:text-[16px] text-xs rounded"
+                disabled={submitting}
+                className="px-6 py-4 bg-emerald-500 text-white sm:text-[16px] text-xs rounded disabled:cursor-not-allowed disabled:bg-emerald-300"
               >
                 Save & Submit
               </button>
@@ -330,8 +331,13 @@ export default function TestEngine({
 
       <SubmitModal
         open={showSubmitModal}
-        onClose={() => setShowSubmitModal(false)}
+        onClose={() => {
+          if (!submitting) {
+            setShowSubmitModal(false);
+          }
+        }}
         onSubmit={handleSubmit}
+        submitting={submitting}
         total={questions.length}
         answered={Object.keys(answers).length}
         notAnswered={questions.length - Object.keys(answers).length}
@@ -428,3 +434,4 @@ export default function TestEngine({
     </div>
   );
 }
+

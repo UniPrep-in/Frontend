@@ -2,6 +2,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSubmit: () => void;
+  submitting: boolean;
   total: number;
   answered: number;
   notAnswered: number;
@@ -13,6 +14,7 @@ export default function SubmitModal({
   open,
   onClose,
   onSubmit,
+  submitting,
   total,
   answered,
   notAnswered,
@@ -68,16 +70,18 @@ export default function SubmitModal({
     <div className="flex justify-between gap-3 pt-2">
       <button
         onClick={onClose}
-        className="w-full px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-medium rounded-lg transition-colors"
+        disabled={submitting}
+        className="w-full px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-amber-300 text-white font-medium rounded-lg transition-colors"
       >
         Continue Test
       </button>
 
       <button
         onClick={onSubmit}
-        className="w-full px-4 py-2.5 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition-colors"
+        disabled={submitting}
+        className="w-full px-4 py-2.5 bg-green-500 hover:bg-green-600 disabled:cursor-not-allowed disabled:bg-green-300 text-white font-medium rounded-lg transition-colors"
       >
-        Submit Test
+        {submitting ? "Processing..." : "Submit Test"}
       </button>
     </div>
   </div>
