@@ -594,23 +594,24 @@ export default function Pricing() {
       </div>
 
       {isSelectionOpen && selectedPlan ? (
-        <div className="fixed inset-0 z-70 flex items-center justify-center bg-black/40 px-4 py-6">
+        <div className="fixed inset-0 z-70 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4 py-0 sm:py-6">
           <div
             className="absolute inset-0"
             onClick={closeSelectionBox}
             aria-hidden="true"
           />
-          <div className="relative z-10 w-full max-w-xl rounded-[28px] border border-neutral-200 bg-white p-4 shadow-2xl md:p-5">
+          <div className="relative z-10 flex max-h-[92vh] w-full max-w-xl flex-col rounded-t-[28px] sm:rounded-[28px] border border-neutral-200 bg-white shadow-2xl">
             <button
               type="button"
               onClick={closeSelectionBox}
-              className="absolute right-4 top-4 rounded-full p-2 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+              className="absolute right-4 top-4 z-20 rounded-full p-2 text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
               aria-label="Close stream selection"
             >
               <X className="h-5 w-5" />
             </button>
 
-            <div className="space-y-1 text-center">
+            <div className="flex-1 overflow-y-auto p-4 pb-36 sm:pb-5 md:p-5">
+              <div className="space-y-1 text-center">
               <p className="text-xs font-medium uppercase tracking-[0.32em] text-neutral-500">
                 Choose your stream
               </p>
@@ -619,7 +620,7 @@ export default function Pricing() {
               </h2>
             </div>
 
-            <div className="mt-5 grid gap-2.5 sm:grid-cols-3">
+            <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
               {STREAM_OPTIONS.map((stream) => {
                 const isSelected = selectedStream === stream.key;
 
@@ -769,7 +770,9 @@ export default function Pricing() {
               </div>
             ) : null}
 
-            <div className="mt-4 flex flex-col gap-3 border-t border-neutral-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            </div>
+
+            <div className="sticky bottom-0 left-0 right-0 mt-0 flex flex-col gap-3 border-t border-neutral-200 bg-white px-4 pt-4 pb-4 sm:static sm:flex-row sm:items-center sm:justify-between md:px-5">
               {selectedStream ? (
                 <div>
                   <p className="text-sm text-neutral-500">
@@ -784,7 +787,7 @@ export default function Pricing() {
                 type="button"
                 onClick={handleCheckout}
                 disabled={!selectedStream || loadingPlanId !== null}
-                className="rounded-full bg-emerald-300 border px-6 py-2.5 text-sm font-semibold text-black shadow-lg transition hover:scale-[1.02] hover:shadow-2xl disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full sm:w-auto rounded-full bg-emerald-300 border px-6 py-3 text-sm font-semibold text-black shadow-lg transition hover:scale-[1.02] hover:shadow-2xl disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loadingPlanId === selectedPlan.id
                   ? "Processing..."
