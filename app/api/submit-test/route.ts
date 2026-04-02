@@ -2,9 +2,28 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
+type SubmitTestRequest = {
+  attemptId?: string;
+  answers?: Record<string, string>;
+  analytics?: Record<string, number>;
+};
+
+type QuestionAnalyticsInsertRow = {
+  attempt_id: string;
+  user_id: string;
+  test_id: string;
+  question_id: string;
+  time_spent: number;
+  is_correct: null;
+};
+
 export async function POST(req: Request) {
   try {
-    const { attemptId, answers, analytics } = await req.json();
+    const {
+      attemptId,
+      answers,
+      analytics,
+    } = (await req.json()) as SubmitTestRequest;
 
     if (!attemptId || !answers || !analytics) {
       return NextResponse.json(
@@ -78,8 +97,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Build analytics (without is_correct, handled in DB)
-    const analyticsToInsert: any[] = [];
+    const analyticsToInsert: QuestionAnalyticsInsertRow[] = [];
 
     for (const questionId in answers) {
       const timeSpent = Math.max(0, analytics[questionId] ?? 0);

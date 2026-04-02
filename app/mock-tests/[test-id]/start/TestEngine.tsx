@@ -369,32 +369,32 @@ export default function TestEngine({
           const isCurrent = index === currentIndex;
 
           return (
-            <button
-              key={q.id}
-              onClick={() => goToQuestion(index)}
-              className={`flex-shrink-0 w-12 h-12 text-sm font-medium flex items-center justify-center ${
-                isCurrent
-                  ? "bg-neutral-200 text-black rounded-full ring-2 ring-neutral-400"
-                  : isMarked
-                    ? "bg-purple-500 text-white rounded-full"
-                    : isAnswered
-                      ? "bg-green-500 text-white rounded-t-full"
-                      : visited[q.id]
-                        ? "bg-red-400 text-white rounded-t-full"
-                        : "bg-neutral-50 text-black border rounded-xl border-neutral-300"
-              }`}
-            >
-              <span className="relative flex items-center justify-center w-full h-full">
-                {index + 1}
-                {isMarked && isAnswered && (
-                  <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
-                )}
-              </span>
-            </button>
-          );
-        })}
+              <button
+                key={q.id}
+                onClick={() => goToQuestion(index)}
+                className={`flex-shrink-0 w-12 h-12 text-sm font-medium flex items-center justify-center ${
+                  isCurrent
+                    ? "bg-neutral-200 text-black rounded-full ring-2 ring-neutral-400"
+                    : isMarked
+                      ? "bg-purple-500 text-white rounded-full"
+                      : isAnswered
+                        ? "bg-green-500 text-white rounded-t-full"
+                        : visited[q.id]
+                          ? "bg-red-400 text-white rounded-t-full"
+                          : "bg-neutral-50 text-black border rounded-xl border-neutral-300"
+                }`}
+              >
+                <span className="relative flex items-center justify-center w-full h-full">
+                  {index + 1}
+                  {isMarked && isAnswered && (
+                    <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+                  )}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
-    </div>
 
     {/* Desktop: Grid layout */}
     <div className="hidden md:grid grid-cols-5 gap-2">

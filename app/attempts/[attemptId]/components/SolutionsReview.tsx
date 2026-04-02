@@ -47,7 +47,10 @@ function getResultBadge(resultState: ReviewAnswer["resultState"]) {
   }
 }
 
-function getPaletteTone(resultState: ReviewAnswer["resultState"], active: boolean) {
+function getPaletteTone(
+  resultState: ReviewAnswer["resultState"],
+  active: boolean,
+) {
   switch (resultState) {
     case "correct":
       return active
