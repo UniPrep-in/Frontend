@@ -19,10 +19,12 @@ type ReviewQuestionRow = {
     | {
         id: string;
         is_correct: boolean | null;
-        selected_option: {
-          id: string;
-          option_text: string;
-        } | null;
+        selected_option:
+          | {
+              id: string;
+              option_text: string;
+            }[]
+          | null;
       }[]
     | null;
 };
@@ -169,7 +171,7 @@ export async function getAttemptReviewData(
       const normalizedAnswer = {
         id: answer?.id ?? question.id,
         is_correct: answer?.is_correct ?? null,
-        selected_option: answer?.selected_option ?? null,
+        selected_option: answer?.selected_option?.[0] ?? null,
       };
       const questionTimeSpent =
         analytics?.find((entry) => entry.question_id === question.id)?.time_spent || 0;
