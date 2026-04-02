@@ -23,7 +23,7 @@ type ReviewQuestionRow = {
           | {
               id: string;
               option_text: string;
-            }
+            }[]
           | null;
       }[]
     | null;
@@ -176,7 +176,7 @@ export async function getAttemptReviewData(
       const normalizedAnswer = {
         id: answer?.id ?? question.id,
         is_correct: answer?.is_correct ?? null,
-        selected_option: answer?.selected_option ?? null,
+        selected_option: answer?.selected_option?.[0] ?? null,
       };
       const questionTimeSpent =
         (analytics as AnalyticsRow[] | null)?.find((entry) => entry.question_id === question.id)
