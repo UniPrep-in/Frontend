@@ -23,7 +23,7 @@ type ReviewQuestionRow = {
           | {
               id: string;
               option_text: string;
-            }[]
+            }
           | null;
       }[]
     | null;
@@ -52,6 +52,11 @@ export type TimingEntry = {
   questionId: string;
   questionOrder: number;
   timeSpent: number;
+};
+
+type AnalyticsRow = {
+  question_id: string;
+  time_spent: number | null;
 };
 
 export type AttemptReviewData = {
@@ -171,10 +176,11 @@ export async function getAttemptReviewData(
       const normalizedAnswer = {
         id: answer?.id ?? question.id,
         is_correct: answer?.is_correct ?? null,
-        selected_option: answer?.selected_option?.[0] ?? null,
+        selected_option: answer?.selected_option ?? null,
       };
       const questionTimeSpent =
-        analytics?.find((entry) => entry.question_id === question.id)?.time_spent || 0;
+        (analytics as AnalyticsRow[] | null)?.find((entry) => entry.question_id === question.id)
+          ?.time_spent || 0;
 
       return {
         ...normalizedAnswer,
@@ -195,7 +201,7 @@ export async function getAttemptReviewData(
     solutionAnswers.map((answer) => [answer.questions.id, answer.questions.question_order]),
   );
 
-  const timingEntries = (analytics ?? [])
+  const timingEntries = ((analytics ?? []) as AnalyticsRow[])
     .map((entry) => {
       const questionOrder = questionOrderById.get(entry.question_id);
 
