@@ -8,6 +8,11 @@ type ReviewOption = {
   is_correct: boolean;
 };
 
+type ReviewSelectedOption = {
+  id: string;
+  option_text: string;
+};
+
 type ReviewQuestionRow = {
   id: string;
   question_text: string;
@@ -20,10 +25,8 @@ type ReviewQuestionRow = {
         id: string;
         is_correct: boolean | null;
         selected_option:
-          | {
-              id: string;
-              option_text: string;
-            }[]
+          | ReviewSelectedOption
+          | ReviewSelectedOption[]
           | null;
       }[]
     | null;
@@ -34,10 +37,7 @@ export type ReviewAnswer = {
   resultState: "correct" | "wrong" | "unattempted";
   is_correct: boolean | null;
   timeSpent: number;
-  selected_option: {
-    id: string;
-    option_text: string;
-  } | null;
+  selected_option: ReviewSelectedOption | null;
   questions: {
     id: string;
     question_text: string;
@@ -77,7 +77,7 @@ export type AttemptReviewData = {
 };
 
 function getResultState(answer: {
-  selected_option: { id: string; option_text: string } | null;
+  selected_option: ReviewSelectedOption | null;
   is_correct: boolean | null;
 }): ReviewAnswer["resultState"] {
   if (!answer.selected_option) {
@@ -85,6 +85,16 @@ function getResultState(answer: {
   }
 
   return answer.is_correct ? "correct" : "wrong";
+}
+
+function normalizeSelectedOption(
+  selectedOption: ReviewSelectedOption | ReviewSelectedOption[] | null | undefined,
+) {
+  if (Array.isArray(selectedOption)) {
+    return selectedOption[0] ?? null;
+  }
+
+  return selectedOption ?? null;
 }
 
 export async function getAttemptReviewData(
@@ -176,7 +186,7 @@ export async function getAttemptReviewData(
       const normalizedAnswer = {
         id: answer?.id ?? question.id,
         is_correct: answer?.is_correct ?? null,
-        selected_option: answer?.selected_option?.[0] ?? null,
+        selected_option: normalizeSelectedOption(answer?.selected_option),
       };
       const questionTimeSpent =
         (analytics as AnalyticsRow[] | null)?.find((entry) => entry.question_id === question.id)
