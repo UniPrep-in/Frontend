@@ -1,174 +1,179 @@
-"use client"
-import Loader from "@/app/components/ui/loader"
-import { useEffect, useState, useMemo, useCallback } from "react"
-import { createClient } from "@/lib/supabase/client"
-import ComingSoon from "@/app/components/ui/comingSoon"
-import { useRouter } from "next/navigation"
-import { ChevronDown, Filter, X } from "lucide-react"
+"use client";
 
-type Note = {
-  id: string
-  title: string
-  pdf_url: string
-  bucket: string
-  subject: string
-  stream: string
-}
+import Image from "next/image";
+import Loader from "@/app/components/ui/loader";
+import ComingSoon from "@/app/components/ui/comingSoon";
+import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, Filter, X } from "lucide-react";
+import type { NoteSummary, NotesResponse } from "@/lib/materials-data";
 
-const supabase = createClient()
+const EMPTY_NOTES_RESPONSE: NotesResponse = {
+  notes: [],
+  totalCount: 0,
+  availableStreams: ["All"],
+  availableSubjects: ["All"],
+};
 
 export default function Notes() {
-  const [notes, setNotes] = useState<Note[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selectedStream, setSelectedStream] = useState<string>("All")
-  const [selectedSubject, setSelectedSubject] = useState<string>("All")
-  const [isStreamOpen, setIsStreamOpen] = useState(false)
-  const [isSubjectOpen, setIsSubjectOpen] = useState(false)
+  const [notes, setNotes] = useState<NoteSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedStream, setSelectedStream] = useState<string>("All");
+  const [selectedSubject, setSelectedSubject] = useState<string>("All");
+  const [availableStreams, setAvailableStreams] = useState<string[]>(["All"]);
+  const [availableSubjects, setAvailableSubjects] = useState<string[]>(["All"]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isStreamOpen, setIsStreamOpen] = useState(false);
+  const [isSubjectOpen, setIsSubjectOpen] = useState(false);
 
-  const router = useRouter()
+  const router = useRouter();
 
-  // Fetch notes from Supabase
-  useEffect(() => {
-    const fetchNotes = async () => {
+  const fetchNotes = useCallback(
+    async (stream: string, subject: string) => {
+      setLoading(true);
+      setError("");
+
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
+        const params = new URLSearchParams();
 
-        if (!session) {
-          console.error("No active session")
-          setLoading(false)
-          return
+        if (stream !== "All") {
+          params.set("stream", stream);
         }
 
-        const { data, error } = await supabase.from("notes").select("*")
-
-        if (error) {
-          console.error("Supabase error:", error)
-        } else {
-          console.log("Fetched notes:", data)
-          setNotes(data || [])
+        if (subject !== "All") {
+          params.set("subject", subject);
         }
-      } catch (err) {
-        console.error("Fetch error:", err)
+
+        const query = params.toString();
+        const response = await fetch(
+          `/api/materials/notes${query ? `?${query}` : ""}`,
+          {
+            cache: "no-store",
+          },
+        );
+
+        const payload = response.ok
+          ? ((await response.json()) as NotesResponse)
+          : EMPTY_NOTES_RESPONSE;
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            setError("Please sign in to view notes.");
+          } else {
+            setError("We could not load notes right now.");
+          }
+          setNotes([]);
+          setAvailableStreams(payload.availableStreams);
+          setAvailableSubjects(payload.availableSubjects);
+          setTotalCount(0);
+          return;
+        }
+
+        setNotes(payload.notes);
+        setAvailableStreams(payload.availableStreams);
+        setAvailableSubjects(payload.availableSubjects);
+        setTotalCount(payload.totalCount);
+      } catch (fetchError) {
+        console.error("Fetch notes error:", fetchError);
+        setError("We could not load notes right now.");
+        setNotes([]);
+        setAvailableStreams(["All"]);
+        setAvailableSubjects(["All"]);
+        setTotalCount(0);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    },
+    [],
+  );
 
-    fetchNotes()
-  }, [])
-
-  // Get unique streams from actual data
-  const availableStreams = useMemo(() => {
-    const streams = new Set(notes.map((note) => note.stream).filter(Boolean))
-    const streamList = ["All", ...Array.from(streams)]
-    console.log("Available streams:", streamList)
-    return streamList
-  }, [notes])
-
-  // Get unique subjects from actual data (optionally filtered by stream)
-  const availableSubjects = useMemo(() => {
-    let filteredNotes = notes
-    if (selectedStream !== "All") {
-      filteredNotes = notes.filter((note) => note.stream === selectedStream)
-    }
-    const subjects = new Set(filteredNotes.map((note) => note.subject).filter(Boolean))
-    const subjectList = ["All", ...Array.from(subjects)]
-    console.log("Available subjects for", selectedStream, ":", subjectList)
-    return subjectList
-  }, [notes, selectedStream])
-
-  // Handle stream change
-  const handleStreamChange = useCallback((newStream: string) => {
-    setSelectedStream(newStream)
-    setSelectedSubject("All") // Reset subject when stream changes
-    setIsStreamOpen(false)
-  }, [])
-
-  // Handle subject change
-  const handleSubjectChange = useCallback((newSubject: string) => {
-    setSelectedSubject(newSubject)
-    setIsSubjectOpen(false)
-  }, [])
-
-  // Filter notes
-  const filteredNotes = useMemo(() => {
-    const result = notes.filter((note) => {
-      const streamMatch = selectedStream === "All" || note.stream === selectedStream
-      const subjectMatch = selectedSubject === "All" || note.subject === selectedSubject
-      return streamMatch && subjectMatch
-    })
-    console.log("Filtered notes:", result.length, "of", notes.length)
-    return result
-  }, [notes, selectedStream, selectedSubject])
-
-  // Close dropdowns when clicking outside
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
+    void fetchNotes(selectedStream, selectedSubject);
+  }, [fetchNotes, selectedStream, selectedSubject]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+
       if (!target.closest(".dropdown-container")) {
-        setIsStreamOpen(false)
-        setIsSubjectOpen(false)
+        setIsStreamOpen(false);
+        setIsSubjectOpen(false);
       }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleStreamChange = useCallback((newStream: string) => {
+    setSelectedStream(newStream);
+    setSelectedSubject("All");
+    setIsStreamOpen(false);
+  }, []);
+
+  const handleSubjectChange = useCallback((newSubject: string) => {
+    setSelectedSubject(newSubject);
+    setIsSubjectOpen(false);
+  }, []);
 
   const clearFilters = useCallback(() => {
-    setSelectedStream("All")
-    setSelectedSubject("All")
-  }, [])
+    setSelectedStream("All");
+    setSelectedSubject("All");
+  }, []);
 
-  const hasActiveFilters = selectedStream !== "All" || selectedSubject !== "All"
+  const hasActiveFilters =
+    selectedStream !== "All" || selectedSubject !== "All";
 
   if (loading) {
     return (
       <main className="flex items-center justify-center">
         <Loader />
       </main>
-    )
+    );
   }
 
   return (
     <main className="px-6 pt-4 pb-24">
-      {/* Header with Filters */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <h1 className="text-2xl text-black font-semibold">Notes</h1>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <h1 className="text-2xl font-semibold text-black">Notes</h1>
 
-        {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 text-neutral-600">
             <Filter className="h-4 w-4" />
             <span className="text-sm font-medium">Filter by:</span>
           </div>
 
-          {/* Stream Dropdown - Only show if we have streams */}
-          {availableStreams.length > 1 && (
+          {availableStreams.length > 1 ? (
             <div className="relative dropdown-container">
               <button
+                type="button"
                 onClick={() => {
-                  setIsStreamOpen(!isStreamOpen)
-                  setIsSubjectOpen(false)
+                  setIsStreamOpen((current) => !current);
+                  setIsSubjectOpen(false);
                 }}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-all ${
                   selectedStream !== "All"
                     ? "bg-blue-300 text-black border"
                     : "bg-neutral-100 text-neutral-700 border border-neutral-200 hover:bg-neutral-200"
                 }`}
               >
                 {selectedStream === "All" ? "Stream" : selectedStream}
-                <ChevronDown className={`h-4 w-4 transition-transform ${isStreamOpen ? "rotate-180" : ""}`} />
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${
+                    isStreamOpen ? "rotate-180" : ""
+                  }`}
+                />
               </button>
 
-              {isStreamOpen && (
-                <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl border border-neutral-200 shadow-lg z-50 max-h-60 overflow-y-auto">
+              {isStreamOpen ? (
+                <div className="absolute left-0 top-full z-50 mt-2 max-h-60 w-48 overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-lg">
                   {availableStreams.map((stream) => (
                     <button
                       key={stream}
+                      type="button"
                       onClick={() => handleStreamChange(stream)}
-                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                      className={`w-full px-4 py-2 text-left text-sm transition-colors ${
                         selectedStream === stream
                           ? "bg-blue-50 text-black font-medium"
                           : "text-black hover:bg-neutral-50"
@@ -178,35 +183,40 @@ export default function Notes() {
                     </button>
                   ))}
                 </div>
-              )}
+              ) : null}
             </div>
-          )}
+          ) : null}
 
-          {/* Subject Dropdown - Only show if we have subjects */}
-          {availableSubjects.length > 1 && (
+          {availableSubjects.length > 1 ? (
             <div className="relative dropdown-container">
               <button
+                type="button"
                 onClick={() => {
-                  setIsSubjectOpen(!isSubjectOpen)
-                  setIsStreamOpen(false)
+                  setIsSubjectOpen((current) => !current);
+                  setIsStreamOpen(false);
                 }}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-all ${
                   selectedSubject !== "All"
                     ? "bg-emerald-300 text-black border"
                     : "bg-neutral-100 text-neutral-700 border border-neutral-200 hover:bg-neutral-200"
                 }`}
               >
                 {selectedSubject === "All" ? "Subject" : selectedSubject}
-                <ChevronDown className={`h-4 w-4 transition-transform ${isSubjectOpen ? "rotate-180" : ""}`} />
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${
+                    isSubjectOpen ? "rotate-180" : ""
+                  }`}
+                />
               </button>
 
-              {isSubjectOpen && (
-                <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-xl border border-neutral-200 shadow-lg z-50 py-1 max-h-64 overflow-y-auto">
+              {isSubjectOpen ? (
+                <div className="absolute left-0 top-full z-50 mt-2 max-h-64 w-56 overflow-y-auto rounded-xl border border-neutral-200 bg-white py-1 shadow-lg">
                   {availableSubjects.map((subject) => (
                     <button
                       key={subject}
+                      type="button"
                       onClick={() => handleSubjectChange(subject)}
-                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${
                         selectedSubject === subject
                           ? "bg-green-50 text-green-700 font-medium"
                           : "text-neutral-700 hover:bg-neutral-50"
@@ -216,104 +226,118 @@ export default function Notes() {
                     </button>
                   ))}
                 </div>
-              )}
+              ) : null}
             </div>
-          )}
+          ) : null}
 
-          {/* Clear Filters */}
-          {hasActiveFilters && (
+          {hasActiveFilters ? (
             <button
+              type="button"
               onClick={clearFilters}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm text-rose-600 hover:bg-rose-50 rounded-full transition-colors"
+              className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-rose-600 transition-colors hover:bg-rose-50"
             >
               <X className="h-4 w-4" />
               Clear
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {/* Results Count */}
       <div className="py-4 text-sm text-neutral-600">
-        Showing {filteredNotes.length} {filteredNotes.length === 1 ? "note" : "notes"}
-        {notes.length > 0 && ` of ${notes.length} total`}
-        {hasActiveFilters}
+        Showing {notes.length} {notes.length === 1 ? "note" : "notes"}
       </div>
 
-      {filteredNotes.length === 0 ? (
-        <div className="flex flex-col justify-center items-center py-12">
-          {notes.length === 0 ? (
+      {error ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-6 py-10 text-center text-rose-700">
+          {error}
+        </div>
+      ) : null}
+
+      {!error && notes.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          {totalCount === 0 && !hasActiveFilters ? (
             <div className="text-center">
-              <p className="text-neutral-500 mb-4">No notes available in database</p>
+              <p className="mb-4 text-neutral-500">
+                No notes available in database
+              </p>
               <ComingSoon />
             </div>
           ) : (
             <div className="text-center">
-              <p className="text-neutral-500 mb-2">No notes match your filters</p>
+              <p className="mb-2 text-neutral-500">No notes match your filters</p>
               <button
+                type="button"
                 onClick={clearFilters}
-                className="text-blue-600 hover:text-blue-700 font-medium"
+                className="font-medium text-blue-600 hover:text-blue-700"
               >
                 Clear filters to see all notes
               </button>
             </div>
           )}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {filteredNotes.map((note) => (
+      ) : null}
+
+      {!error && notes.length > 0 ? (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
+          {notes.map((note) => (
             <div
               key={note.id}
-              className="p-4 col-span-1 shadow-lg rounded-2xl bg-white duration-300 hover:scale-105 transition"
+              className="col-span-1 rounded-2xl bg-white p-4 shadow-lg transition duration-300 hover:scale-105"
             >
-              <div className="relative w-full h-50 mb-3 rounded-md overflow-hidden">
-                <img
+              <div className="relative mb-3 h-50 w-full overflow-hidden rounded-md">
+                <Image
                   src="/assets/notes.png"
                   alt="preview"
-                  className="w-full h-full object-cover"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                  className="object-cover"
                 />
                 <div className="absolute inset-0 flex items-center justify-center p-2">
-                  <span className="text-xl text-black font-medium line-clamp-2 text-center">
+                  <span className="line-clamp-2 text-center text-xl font-medium text-black">
                     {note.title}
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 pt-4 flex-wrap">
-                {note.stream && (
-                  <span className="px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+              <div className="flex flex-wrap items-center gap-2 pt-4">
+                {note.stream ? (
+                  <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
                     {note.stream}
                   </span>
-                )}
-                {note.subject && (
-                  <span className="px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium">
+                ) : null}
+                {note.subject ? (
+                  <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
                     {note.subject}
                   </span>
-                )}
+                ) : null}
               </div>
 
               <div className="py-4">
-                <span>Revise & Study about {note.title} using the notes provided below.</span>
+                <span>
+                  Revise &amp; Study about {note.title} using the notes provided
+                  below.
+                </span>
               </div>
 
               <button
+                type="button"
                 onClick={() => {
                   const path = note.pdf_url
                     ?.split("/object/sign/notes/")[1]
-                    ?.split("?")[0]
+                    ?.split("?")[0];
 
                   if (path) {
-                    router.push(`/viewer?file=${encodeURIComponent(path)}`)
+                    router.push(`/viewer?file=${encodeURIComponent(path)}`);
                   }
                 }}
-                className="inline-block py-4 px-6 rounded-xl text-sm bg-purple-300 text-black border font-medium"
+                className="inline-block rounded-xl border bg-purple-300 px-6 py-4 text-sm font-medium text-black"
               >
                 View Notes
               </button>
             </div>
           ))}
         </div>
-      )}
+      ) : null}
     </main>
-  )
+  );
 }

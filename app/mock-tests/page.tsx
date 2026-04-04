@@ -8,9 +8,8 @@ import {
   type MainStreamLabel,
   type SubscriptionAccess,
   getLatestVerifiedSubscriptionAccess,
-  normalizeContentStreamLabel,
-  resolveContentMeta,
 } from "@/lib/subscriptions";
+import { getMockTestsPageData, getSubjectOptionsByStream } from "@/lib/mock-tests-data";
 
 type MockTestsPageProps = {
   searchParams: Promise<{
@@ -19,12 +18,6 @@ type MockTestsPageProps = {
     subject?: string;
     stream?: string;
   }>;
-};
-
-type SubjectOptionsByStream = Record<MainStreamLabel, string[]>;
-type MockFilterRow = {
-  stream: string | null;
-  subject: string | null;
 };
 
 export default async function MockTestsPage({
@@ -48,6 +41,23 @@ export default async function MockTestsPage({
   }
 
   const subjectOptionsByStream = await getSubjectOptionsByStream();
+  const initialStream = normalizeStreamLabel(resolvedSearchParams.stream, access);
+  const availableSubjects = subjectOptionsByStream[initialStream] ?? [];
+  const initialCategory = normalizeInitialCategory(
+    resolvedSearchParams.category,
+    access,
+    availableSubjects,
+  );
+  const initialPage = parsePage(resolvedSearchParams.page);
+  const { category, subject } = getRequestParams(initialCategory, availableSubjects);
+  const initialMockTestsData = access
+    ? await getMockTestsPageData({
+        access,
+        category,
+        subject,
+        page: initialPage,
+      })
+    : null;
 
   return (
     <main className="flex flex-col items-center justify-center">
@@ -59,6 +69,7 @@ export default async function MockTestsPage({
         <MockTestsClient
           access={access}
           subjectOptionsByStream={subjectOptionsByStream}
+          initialMockTestsData={initialMockTestsData}
           initialParams={resolvedSearchParams}
         />
       </div>
@@ -70,57 +81,63 @@ export default async function MockTestsPage({
   );
 }
 
-function getEmptySubjectOptionsByStream(): SubjectOptionsByStream {
-  return {
-    Science: [],
-    Commerce: [],
-    Arts: [],
-  };
+function parsePage(value?: string) {
+  const page = Number(value ?? "1");
+  return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
-async function getSubjectOptionsByStream(): Promise<SubjectOptionsByStream> {
-  const adminSupabase = createAdminClient();
-  const { data: tests, error } = await adminSupabase
-    .from("tests")
-    .select("stream, subject")
-    .not("subject", "is", null);
-
-  if (error || !tests) {
-    console.error("Error fetching mock filter options:", error);
-    return getEmptySubjectOptionsByStream();
+function normalizeInitialCategory(
+  value: string | undefined,
+  access: SubscriptionAccess | null,
+  subjects: string[],
+) {
+  if (value === "all" || value === "english" || value === "gat") {
+    if (!access || access.allowedCategories.includes(value)) {
+      return value;
+    }
   }
 
-  const mainSubjectsByStream = {
-    Science: new Set<string>(),
-    Commerce: new Set<string>(),
-    Arts: new Set<string>(),
-  };
+  if (value && subjects.includes(value)) {
+    return value;
+  }
 
-  (tests as MockFilterRow[]).forEach((test) => {
-    if (!test.subject) {
-      return;
-    }
+  return "all";
+}
 
-    const contentMeta = resolveContentMeta(test.stream, test.subject);
+function normalizeStreamLabel(
+  value: string | undefined,
+  access: SubscriptionAccess | null,
+): MainStreamLabel {
+  const normalized = value?.trim().toLowerCase();
 
-    if (!contentMeta || contentMeta.category !== "main" || !contentMeta.mainStreamLabel) {
-      return;
-    }
+  const label =
+    normalized === "science"
+      ? "Science"
+      : normalized === "commerce"
+        ? "Commerce"
+        : normalized === "arts" ||
+            normalized === "art" ||
+            normalized === "humanities"
+          ? "Arts"
+          : null;
 
-    const normalizedStream = normalizeContentStreamLabel(test.stream);
+  if (label && access?.selectableMainStreams.includes(label)) {
+    return label;
+  }
 
-    if (
-      normalizedStream === "Science" ||
-      normalizedStream === "Commerce" ||
-      normalizedStream === "Arts"
-    ) {
-      mainSubjectsByStream[normalizedStream].add(test.subject);
-    }
-  });
+  return access?.baseStreamLabel ?? "Science";
+}
+
+function getRequestParams(category: string, subjects: string[]) {
+  if (subjects.includes(category)) {
+    return {
+      category: "main" as const,
+      subject: category,
+    };
+  }
 
   return {
-    Science: Array.from(mainSubjectsByStream.Science).sort(),
-    Commerce: Array.from(mainSubjectsByStream.Commerce).sort(),
-    Arts: Array.from(mainSubjectsByStream.Arts).sort(),
+    category: category as "all" | "english" | "gat",
+    subject: "",
   };
 }

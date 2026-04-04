@@ -105,7 +105,7 @@ export default function StatsStrip() {
                                 y: -8, 
                                 transition: { duration: 0.3, ease: "easeOut" } 
                             }}
-                            className={`flex flex-col items-center justify-center text-center p-4 rounded-2xl transition-colors duration-300 hover:bg-gray-50/80 group cursor-pointer ${index !== stats.length - 1 ? "md:border-r border-gray-100" : ""
+                            className={`flex flex-col items-center justify-center text-center p-4 rounded-2xl transition-colors duration-300 hover:bg-gray-50/80 group ${index !== stats.length - 1 ? "md:border-r border-gray-100" : ""
                                 }`}
                         >
                             <motion.div 
