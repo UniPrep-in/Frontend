@@ -3,6 +3,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { RealtimePostgresInsertPayload } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 
 type Message = {
@@ -54,7 +55,7 @@ export default function LectureChat({ lectureId, user }: LectureChatProps) {
           table: "lecture_chat_messages",
           filter: `lecture_id=eq.${lectureId}`,
         },
-        (payload) => {
+        (payload: RealtimePostgresInsertPayload<Message>) => {
           setMessages((prev) => [...prev, payload.new as Message]);
         }
       )

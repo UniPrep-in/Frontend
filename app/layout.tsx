@@ -3,13 +3,6 @@ import "./globals.css";
 import SmoothScrollProvider from "./components/ui/SmoothScrollProvider";
 import { AuthProvider, type AuthProfile } from "@/providers/AuthProvider";
 import { createClient } from "@/lib/supabase/server";
-import { Comfortaa } from 'next/font/google';
-
-const comfortaa = Comfortaa({
-  subsets: ['latin'],
-  weight: ['300','400','700'], // only valid weights
-  style: ['normal'],  // enable italic
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.uniprep.in"),
@@ -130,10 +123,8 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className={comfortaa.className}>
-      <body
-        className="text-black"
-      >
+    <html lang="en">
+      <body className="text-black">
         <AuthProvider initialUser={user ?? null} initialProfile={initialProfile}>
           <SmoothScrollProvider>
             {children}
