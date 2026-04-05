@@ -74,7 +74,7 @@ export default function ImageCarousel({
   return (
     <div 
       ref={containerRef}
-      className="relative w-full overflow-hidden cursor-pointer"
+      className="relative w-full overflow-hidden"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

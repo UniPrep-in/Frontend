@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Materials from "./page";
+import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.uniprep.in"),
@@ -79,8 +79,10 @@ publisher: "Uniprep",
   },
 };
 
-export default function MaterialsLayout(){
-    return(
-        <Materials />
-    )
+export default function MaterialsLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return children;
 }

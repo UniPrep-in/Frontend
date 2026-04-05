@@ -1,14 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SmoothScrollProvider from "./components/ui/SmoothScrollProvider";
-import { AuthProvider } from "@/providers/AuthProvider";
-import { Comfortaa } from 'next/font/google';
-
-const comfortaa = Comfortaa({
-  subsets: ['latin'],
-  weight: ['300','400','700'], // only valid weights
-  style: ['normal'],  // enable italic
-});
+import { AuthProvider, type AuthProfile } from "@/providers/AuthProvider";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.uniprep.in"),
@@ -99,17 +93,39 @@ publisher: "Uniprep",
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let initialProfile: AuthProfile | null = null;
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("avatar_url, phone, plan_id, payment_status")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    initialProfile = profile
+      ? {
+          avatar_url: profile.avatar_url ?? null,
+          phone: profile.phone ?? null,
+          plan_id: profile.plan_id ?? null,
+          payment_status: profile.payment_status ?? null,
+        }
+      : null;
+  }
+
   return (
-    <html lang="en" className={comfortaa.className}>
-      <body
-        className="text-black"
-      >
-        <AuthProvider>
+    <html lang="en">
+      <body className="text-black">
+        <AuthProvider initialUser={user ?? null} initialProfile={initialProfile}>
           <SmoothScrollProvider>
             {children}
           </SmoothScrollProvider>

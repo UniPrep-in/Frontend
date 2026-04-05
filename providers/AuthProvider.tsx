@@ -1,10 +1,10 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
-import type { User } from "@supabase/supabase-js";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 
-type AuthProfile = {
+export type AuthProfile = {
   avatar_url: string | null;
   phone: string | null;
   plan_id: string | null;
@@ -38,10 +38,19 @@ async function getAuthProfile(userId: string): Promise<AuthProfile | null> {
     : null;
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<AuthProfile | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
+export function AuthProvider({
+  children,
+  initialUser,
+  initialProfile,
+}: {
+  children: React.ReactNode;
+  initialUser: User | null;
+  initialProfile: AuthProfile | null;
+}) {
+  const [user, setUser] = useState<User | null>(initialUser);
+  const [profile, setProfile] = useState<AuthProfile | null>(initialProfile);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const activeUserIdRef = useRef<string | null>(initialUser?.id ?? null);
 
   const refreshProfile = async () => {
     if (!user) {
@@ -55,56 +64,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let isMounted = true;
 
-    const loadAuthState = async () => {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
-
-      if (!isMounted) {
-        return;
-      }
-
-      setUser(currentUser ?? null);
-
-      if (currentUser) {
-        setProfile(await getAuthProfile(currentUser.id));
-      } else {
-        setProfile(null);
-      }
-
-      if (isMounted) {
-        setIsAuthLoading(false);
-      }
-    };
-
-    void loadAuthState();
-
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === "INITIAL_SESSION" || !isMounted) {
-        return;
-      }
+    } = supabase.auth.onAuthStateChange(
+      async (event: AuthChangeEvent, session: Session | null) => {
+        if (!isMounted || event === "INITIAL_SESSION") {
+          return;
+        }
 
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
+        const currentUser = session?.user ?? null;
+        const nextUserId = currentUser?.id ?? null;
+        const previousUserId = activeUserIdRef.current;
 
-      if (currentUser) {
-        setProfile(await getAuthProfile(currentUser.id));
-      } else {
-        setProfile(null);
-      }
+        setUser(currentUser);
 
-      if (isMounted) {
+        if (!currentUser) {
+          activeUserIdRef.current = null;
+          setProfile(null);
+          setIsAuthLoading(false);
+          return;
+        }
+
+        if (nextUserId === previousUserId) {
+          return;
+        }
+
+        activeUserIdRef.current = nextUserId;
+        setIsAuthLoading(true);
+
+        const nextProfile = await getAuthProfile(currentUser.id);
+
+        if (!isMounted || activeUserIdRef.current !== currentUser.id) {
+          return;
+        }
+
+        setProfile(nextProfile);
         setIsAuthLoading(false);
-      }
-    });
+      },
+    );
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    activeUserIdRef.current = user?.id ?? null;
+  }, [user?.id]);
 
   return (
     <AuthContext.Provider value={{ user, profile, isAuthLoading, refreshProfile }}>
