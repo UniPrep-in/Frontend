@@ -3,8 +3,6 @@ import ComingSoon from "../components/ui/comingSoon";
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { RotateCcw } from "lucide-react";
-import Navbar from "../components/ui/Navbar";
-import Footer from "../components/Footer";
 import type { ContentCategory, MainStreamLabel } from "@/lib/subscriptions";
 
 type Lecture = {
@@ -259,8 +257,6 @@ export default function Lecture() {
 
   return (
     <main>
-      <Navbar />
-
       <div className="p-4 md:p-8">
         {/* 
         <h1 className="mb-6 text-xl font-semibold">Lectures</h1>
@@ -345,8 +341,6 @@ export default function Lecture() {
 
           <ComingSoon />
       </div>
-
-      <Footer />
     </main>
   );
 }

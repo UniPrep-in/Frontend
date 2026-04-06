@@ -15,7 +15,6 @@ import {
   CheckCircle,
   Eye,
   EyeOff,
-  Loader2,
   Lock,
   Mail,
   User,
@@ -470,7 +469,7 @@ export default function AuthForm() {
                 className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 font-medium text-white shadow-lg shadow-slate-900/20 transform-gpu transition-all duration-200 hover:scale-[1.01] hover:bg-slate-800 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
               >
                 {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>{isLogin ? "Signing in..." : "Creating account..."}</span>
                 ) : isLogin ? (
                   "Sign in"
                 ) : (

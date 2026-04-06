@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -8,11 +8,15 @@ import useSWR, { useSWRConfig } from "swr";
 import {
   ChevronLeft,
   ChevronRight,
-  Loader2,
   RotateCcw,
   X,
 } from "lucide-react";
-import type { MockTest, MockTestsPageResponse } from "@/lib/mock-tests-data";
+import type {
+  MockTest,
+  MockTestsBootstrapResponse,
+  MockTestsPageResponse,
+} from "@/lib/mock-tests-data";
+import Loader from "@/app/components/ui/loader";
 import {
   loadRazorpayCheckoutScript,
   type RazorpaySuccessResponse,
@@ -22,13 +26,9 @@ import {
   type ContentCategory,
   getDisplayPriceRupees,
   type MainStreamLabel,
-  type SubscriptionAccess,
 } from "@/lib/subscriptions";
 
 type MockTestsClientProps = {
-  access: SubscriptionAccess;
-  subjectOptionsByStream: Record<MainStreamLabel, string[]>;
-  initialMockTestsData: MockTestsPageResponse;
   initialParams: {
     category?: string;
     subject?: string;
@@ -93,46 +93,22 @@ function parsePage(value?: string) {
   return Number.isInteger(page) && page > 0 ? page : 1;
 }
 
-function normalizeInitialCategory(
-  value: string | undefined,
-  access: SubscriptionAccess,
-  subjects: string[],
-): string {
-  if (value === "all" || value === "english" || value === "gat") {
-    if (access.allowedCategories.includes(value as ContentCategory)) {
-      return value;
-    }
-  }
-
-  if (value && subjects.includes(value)) {
-    return value;
-  }
-
-  return "all";
-}
-
-function normalizeStreamLabel(
-  value: string | undefined,
-  access: SubscriptionAccess,
-): MainStreamLabel {
+function parseStreamLabel(value?: string): MainStreamLabel {
   const normalized = value?.trim().toLowerCase();
 
-  const label =
-    normalized === "science"
-      ? "Science"
-      : normalized === "commerce"
-        ? "Commerce"
-        : normalized === "arts" ||
-            normalized === "art" ||
-            normalized === "humanities"
-          ? "Arts"
-          : null;
-
-  if (label && access.selectableMainStreams.includes(label)) {
-    return label;
+  if (normalized === "commerce") {
+    return "Commerce";
   }
 
-  return access.baseStreamLabel;
+  if (
+    normalized === "arts" ||
+    normalized === "art" ||
+    normalized === "humanities"
+  ) {
+    return "Arts";
+  }
+
+  return "Science";
 }
 
 function buildUrl(pathname: string, state: FilterState) {
@@ -151,45 +127,23 @@ function buildUrl(pathname: string, state: FilterState) {
   return query ? `${pathname}?${query}` : pathname;
 }
 
-function getRequestParams(category: string, subjects: string[]) {
-  if (subjects.includes(category)) {
-    return {
-      category: "main" as const,
-      subject: category,
-    };
-  }
-
-  return {
-    category: category as ContentCategory,
-    subject: "",
-  };
-}
-
-async function fetchMockTests([, stream, category, subject, page]: readonly [
+async function fetchMockTests([, stream, category, page]: readonly [
   string,
   MainStreamLabel,
-  ContentCategory,
   string,
   number,
-]) {
+]): Promise<MockTestsBootstrapResponse> {
   const params = new URLSearchParams();
   params.set("stream", stream.toLowerCase());
   params.set("category", category);
-
-  if (subject) {
-    params.set("subject", subject);
-  }
-
   params.set("page", String(page));
-  const response = await fetch(`/api/mock-tests?${params.toString()}`, {
-    cache: "no-store",
-  });
+  const response = await fetch(`/api/mock-tests?${params.toString()}`);
 
   if (!response.ok) {
     throw new Error("We could not load mock tests right now.");
   }
 
-  return (await response.json()) as MockTestsPageResponse;
+  return (await response.json()) as MockTestsBootstrapResponse;
 }
 
 function FilterTab({
@@ -246,27 +200,19 @@ function getVerifyErrorMessage(status?: number) {
 }
 
 export default function MockTestsClient({
-  access,
-  subjectOptionsByStream,
-  initialMockTestsData,
   initialParams,
 }: MockTestsClientProps) {
   const router = useRouter();
   const { user, profile, isAuthLoading } = useAuth();
   const { mutate } = useSWRConfig();
+  const [hasHydrated, setHasHydrated] = useState(false);
+  const filterSectionRef = useRef<HTMLElement | null>(null);
+  const previousPageRef = useRef<number | null>(null);
   const pathname = "/mock-tests";
-  const initialStream = normalizeStreamLabel(initialParams.stream, access);
-  const availableSubjects = subjectOptionsByStream[initialStream] ?? [];
-  const initialPage = parsePage(initialParams.page);
-  const initialCategory = normalizeInitialCategory(
-    initialParams.category,
-    access,
-    availableSubjects,
-  );
   const [filters, setFilters] = useState<FilterState>({
-    stream: initialStream,
-    category: initialCategory,
-    page: initialPage,
+    stream: parseStreamLabel(initialParams.stream),
+    category: initialParams.category || "all",
+    page: parsePage(initialParams.page),
   });
   const [selectedTest, setSelectedTest] = useState<MockTest | null>(null);
   const [purchasingTestId, setPurchasingTestId] = useState<string | null>(null);
@@ -275,14 +221,10 @@ export default function MockTestsClient({
     message: string;
   } | null>(null);
 
-  const currentSubjects = subjectOptionsByStream[filters.stream] ?? [];
-  const requestParams = getRequestParams(filters.category, currentSubjects);
-  const initialRequestParams = getRequestParams(initialCategory, availableSubjects);
   const swrKey = [
     "mock-tests",
     filters.stream,
-    requestParams.category,
-    requestParams.subject,
+    filters.category,
     filters.page,
   ] as const;
 
@@ -312,70 +254,91 @@ export default function MockTestsClient({
   useEffect(() => {
     const handlePopState = () => {
       const searchParams = new URLSearchParams(window.location.search);
-      const stream = normalizeStreamLabel(
-        searchParams.get("stream") ?? undefined,
-        access,
-      );
-      const subjects = subjectOptionsByStream[stream] ?? [];
-      const category = normalizeInitialCategory(
-        searchParams.get("category") ?? undefined,
-        access,
-        subjects,
-      );
-
       setFilters({
-        stream,
-        category,
+        stream: parseStreamLabel(searchParams.get("stream") ?? undefined),
+        category: searchParams.get("category") ?? "all",
         page: parsePage(searchParams.get("page") ?? "1"),
       });
     };
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, [access, subjectOptionsByStream]);
+  }, []);
 
   const applyState = (nextState: FilterState) => {
     setFilters(nextState);
     window.history.pushState(null, "", buildUrl(pathname, nextState));
   };
 
+  const { data, error, isLoading } = useSWR(swrKey, fetchMockTests, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    keepPreviousData: true,
+  });
+
+  const access = data?.access;
+  const subjectOptionsByStream = data?.subjectOptionsByStream;
+  const currentSubjects =
+    access && subjectOptionsByStream
+      ? subjectOptionsByStream[filters.stream] ?? []
+      : [];
+
   const allFilterOptions: {
     type: "category" | "subject";
     value: string;
     label: string;
-  }[] = [
-    { type: "category", value: "all", label: CATEGORY_LABELS.all },
-    ...access.allowedCategories
-      .filter((category) => category !== "all" && category !== "main")
-      .map((category) => ({
-        type: "category" as const,
-        value: category,
-        label: CATEGORY_LABELS[category],
-      })),
-    ...currentSubjects.map((subject) => ({
-      type: "subject" as const,
-      value: subject,
-      label: toDisplayLabel(subject),
-    })),
-  ];
+  }[] = access
+    ? [
+        { type: "category", value: "all", label: CATEGORY_LABELS.all },
+        ...access.allowedCategories
+          .filter((category) => category !== "all" && category !== "main")
+          .map((category) => ({
+            type: "category" as const,
+            value: category,
+            label: CATEGORY_LABELS[category],
+          })),
+        ...currentSubjects.map((subject) => ({
+          type: "subject" as const,
+          value: subject,
+          label: toDisplayLabel(subject),
+        })),
+      ]
+    : [];
 
-  const { data, error, isLoading, isValidating } = useSWR(swrKey, fetchMockTests, {
-    fallbackData:
-      filters.stream === initialStream &&
-      filters.page === initialPage &&
-      requestParams.category === initialRequestParams.category &&
-      requestParams.subject === initialRequestParams.subject
-        ? initialMockTestsData
+  const visibleData: MockTestsPageResponse | undefined = useMemo(
+    () =>
+      data
+        ? {
+            tests: data.tests,
+            totalPages: data.totalPages,
+            currentPage: data.currentPage,
+            totalCount: data.totalCount,
+          }
         : undefined,
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    revalidateIfStale: false,
-  });
+    [data],
+  );
+  const shouldShowLoadingState = !hasHydrated || isLoading;
+  const shouldShowErrorState = !shouldShowLoadingState && !visibleData && Boolean(error);
 
-  const hasMatchingPageData = data?.currentPage === filters.page;
-  const visibleData = hasMatchingPageData ? data : undefined;
-  const isInitialLoading = !error && (!visibleData || (isLoading && !hasMatchingPageData));
-  const isRefreshing = Boolean(visibleData) && isValidating;
+  useEffect(() => {
+    setHasHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydrated) {
+      previousPageRef.current = filters.page;
+      return;
+    }
+
+    if (previousPageRef.current !== null && previousPageRef.current !== filters.page) {
+      filterSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+
+    previousPageRef.current = filters.page;
+  }, [filters.page, hasHydrated]);
 
   useEffect(() => {
     void mutate(swrKey);
@@ -391,8 +354,7 @@ export default function MockTestsClient({
     const nextPageKey = [
       "mock-tests",
       filters.stream,
-      requestParams.category,
-      requestParams.subject,
+      filters.category,
       filters.page + 1,
     ] as const;
 
@@ -404,8 +366,7 @@ export default function MockTestsClient({
     filters.page,
     filters.stream,
     mutate,
-    requestParams.category,
-    requestParams.subject,
+    filters.category,
     visibleData,
   ]);
 
@@ -424,7 +385,7 @@ export default function MockTestsClient({
   const markMockAsPurchased = async (testId: string) => {
     await mutate(
       swrKey,
-      (current?: MockTestsPageResponse) => {
+      (current?: MockTestsBootstrapResponse) => {
         if (!current) {
           return current;
         }
@@ -598,6 +559,30 @@ export default function MockTestsClient({
   };
 
   const renderPrimaryAction = (test: MockTest) => {
+    if (test.activeAttemptId) {
+      return (
+        <Link
+          href={`/mock-tests/${test.id}/start?attemptId=${test.activeAttemptId}`}
+          prefetch
+          className="inline-block rounded-xl border border-black bg-amber-300 px-4 py-2 text-black transition hover:bg-amber-400"
+        >
+          Resume Test
+        </Link>
+      );
+    }
+
+    if (test.hasReachedAttemptLimit) {
+      return (
+        <button
+          type="button"
+          disabled
+          className="inline-block cursor-not-allowed rounded-xl border border-slate-300 bg-slate-200 px-4 py-2 text-slate-600"
+        >
+          Attempt Limit Reached
+        </button>
+      );
+    }
+
     if (test.canAccess) {
       return (
         <Link
@@ -605,8 +590,10 @@ export default function MockTestsClient({
           prefetch
           className="inline-block rounded-xl border border-black bg-emerald-300 px-4 py-2 text-black transition hover:bg-emerald-400"
         >
-          {test.hasFreeMockAvailable && !test.hasSubscriptionAccess && !test.isPurchased
-            ? "Start Free Mock"
+          {test.attemptCount >= 1
+            ? "Reattempt"
+            : test.hasFreeMockAvailable && !test.hasSubscriptionAccess && !test.isPurchased
+              ? "Start Free Mock"
             : "Start Test"}
         </Link>
       );
@@ -673,96 +660,93 @@ export default function MockTestsClient({
         </div>
       ) : null}
 
-      <section className="mb-8 rounded-3xl border border-neutral-100 bg-white p-4 shadow-sm sm:p-6">
-        <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-black">Stream:</span>
-            {access.isSubscriber ? (
-              <span className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white">
-                {access.baseStreamLabel}
-              </span>
-            ) : (
-              access.selectableMainStreams.map((stream) => (
-                <FilterTab
-                  key={stream}
-                  active={filters.stream === stream}
-                  onClick={() =>
+      {access ? (
+        <section
+          ref={filterSectionRef}
+          className="mb-8 rounded-3xl border border-neutral-100 bg-white p-4 shadow-sm sm:p-6"
+        >
+          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-black">Stream:</span>
+              {access.isSubscriber ? (
+                <span className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white">
+                  {access.baseStreamLabel}
+                </span>
+              ) : (
+                access.selectableMainStreams.map((stream) => (
+                  <FilterTab
+                    key={stream}
+                    active={filters.stream === stream}
+                    onClick={() =>
+                      applyState({
+                        stream,
+                        category: "all",
+                        page: 1,
+                      })
+                    }
+                  >
+                    {stream}
+                  </FilterTab>
+                ))
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-2 sm:gap-4">
+              <div className="flex items-center gap-3 pb-1">
+                <span className="text-sm font-medium text-black">Subject:</span>
+                <select
+                  value={filters.category}
+                  onChange={(event) =>
                     applyState({
-                      stream,
-                      category: "all",
+                      ...filters,
+                      category: event.target.value,
                       page: 1,
                     })
                   }
+                  className="cursor-pointer rounded-md border border-black bg-blue-300 px-2 py-2 text-xs focus:outline-none sm:text-sm"
                 >
-                  {stream}
-                </FilterTab>
-              ))
-            )}
-          </div>
+                  {allFilterOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          <div className="flex items-center justify-between gap-2 sm:gap-4">
-            <div className="flex items-center gap-3 pb-1">
-              <span className="text-sm font-medium text-black">Subject:</span>
-              <select
-                value={filters.category}
-                onChange={(event) =>
-                  applyState({
-                    ...filters,
-                    category: event.target.value,
-                    page: 1,
-                  })
-                }
-                className="cursor-pointer rounded-md border border-black bg-blue-300 px-2 py-2 text-xs focus:outline-none sm:text-sm"
+              <button
+                type="button"
+                onClick={resetFilters}
+                disabled={filters.category === "all"}
+                className="inline-flex shrink-0 items-center gap-2 rounded-full border border-neutral-200 px-4 py-2 text-xs font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
               >
-                {allFilterOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                <RotateCcw className="h-4 w-4" />
+                Reset
+              </button>
             </div>
+          </div>
 
-            <button
-              type="button"
-              onClick={resetFilters}
-              disabled={filters.category === "all"}
-              className="inline-flex shrink-0 items-center gap-2 rounded-full border border-neutral-200 px-4 py-2 text-xs font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Reset
-            </button>
-          </div>
-        </div>
+          {!access.isSubscriber ? (
+            <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+              {user
+                ? visibleData?.tests.some((test) => test.hasFreeMockAvailable)
+                  ? "Your account can start one mock for free and reattempt that same mock once. After that, a subscription plan is required."
+                  : "Your free mock has already been used. You can reattempt that same mock one more time if available, otherwise buy a subscription plan to continue."
+                : "Sign in to use your one free mock, then upgrade to a subscription plan for full access."}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
-        {!access.isSubscriber ? (
-          <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-            {user
-              ? visibleData?.tests.some((test) => test.hasFreeMockAvailable)
-                ? "Your account can start one mock for free. After that, a subscription plan is required."
-                : "Your free mock has been used. Buy a subscription plan to continue with more mocks."
-              : "Sign in to use your one free mock, then upgrade to a subscription plan for full access."}
-          </div>
-        ) : null}
-      </section>
-
-      {isInitialLoading ? (
-        <div className="space-y-6">
-          <div className="flex items-center gap-3 text-sm text-slate-600">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading mock tests...
-          </div>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <div
-                key={index}
-                className="h-52 animate-pulse rounded-2xl border border-slate-200 bg-slate-100"
-              />
-            ))}
-          </div>
+      {shouldShowLoadingState ? (
+        <div className="flex min-h-[18rem] items-center justify-center rounded-3xl bg-gradient-to-br from-orange-50 via-white to-amber-50 px-4">
+          <Loader
+            title="Loading mock tests"
+            subtitle="Pulling the latest mocks for you."
+          />
         </div>
       ) : null}
 
-      {error ? (
+      {shouldShowErrorState ? (
         <div className="rounded-3xl border border-rose-200 bg-rose-50 px-6 py-10 text-center text-rose-700">
           <p className="text-lg font-semibold">We could not load these mocks.</p>
           <p className="mt-2 text-sm">
@@ -771,23 +755,14 @@ export default function MockTestsClient({
         </div>
       ) : null}
 
-      {!isInitialLoading && !error && visibleData ? (
+      {!shouldShowLoadingState && !shouldShowErrorState && visibleData ? (
         <>
-          {isRefreshing ? (
-            <div className="mb-4 flex justify-end">
-              <span className="inline-flex items-center gap-2 text-sm text-slate-600">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Refreshing
-              </span>
-            </div>
-          ) : null}
-
           {visibleData.tests.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {visibleData.tests.map((test) => (
                 <div
                   key={test.id}
-                  className="relative overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:shadow-md"
+                  className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition hover:shadow-md"
                 >
                   <Image
                     src="/assets/nta.jpeg"
@@ -813,14 +788,14 @@ export default function MockTestsClient({
                         Purchased
                       </span>
                     ) : null}
-                    {test.hasSubscriptionAccess ? (
-                      <span className="rounded-full bg-neutral-900 px-2 py-1 text-xs font-medium text-white">
-                        Plan Access
-                      </span>
-                    ) : null}
                     {test.hasFreeMockAvailable && !test.hasSubscriptionAccess ? (
                       <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
                         1 Free Mock
+                      </span>
+                    ) : null}
+                    {test.attemptCount >= 1 ? (
+                      <span className="rounded-full bg-violet-100 px-2 py-1 text-xs font-medium text-violet-800">
+                        Attempt {Math.min(test.attemptCount, 2)} / 2
                       </span>
                     ) : null}
                   </div>
@@ -834,13 +809,17 @@ export default function MockTestsClient({
                     <span>Total Marks: {test.total_marks}</span>
                   </div>
 
-                  <div className="mb-2 text-xs text-neutral-500">Year: {test.year}</div>
+                  <div className="mb-0.5 text-xs text-neutral-500">Year: {test.year}</div>
 
-                  <div className="mb-4 text-sm font-medium">
-                    {test.hasSubscriptionAccess ? (
-                      <span className="text-emerald-700">Ready to start</span>
-                    ) : test.isPurchased ? (
+                  <div className="mb-0.5 min-h-[1.5rem] text-sm font-medium">
+                    {test.hasReachedAttemptLimit ? (
+                      <span className="text-rose-700">You have already used both attempts for this mock</span>
+                    ) : test.activeAttemptId ? (
+                      <span className="text-amber-700">Resume your in-progress attempt</span>
+                    ) : test.hasSubscriptionAccess ? null : test.isPurchased ? (
                       <span className="text-emerald-700">Purchased access available</span>
+                    ) : test.attemptCount >= 1 ? (
+                      <span className="text-violet-700">You can reattempt this mock one more time</span>
                     ) : test.hasFreeMockAvailable ? (
                       <span className="text-amber-700">Use your one free mock on this test</span>
                     ) : ENABLE_SINGLE_MOCK_PURCHASES ? (
@@ -852,7 +831,9 @@ export default function MockTestsClient({
                     )}
                   </div>
 
-                  {renderPrimaryAction(test)}
+                  <div className="mt-auto pt-0">
+                    {renderPrimaryAction(test)}
+                  </div>
                 </div>
               ))}
             </div>

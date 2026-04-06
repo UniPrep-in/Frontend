@@ -64,11 +64,11 @@ export default function Footer() {
 
   return (
     <footer className="bg-white border-t border-gray-200">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12">
           
           {/* Left Side - Brand */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-5">
             <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
               Uniprep.in
             </h2>
@@ -77,7 +77,7 @@ export default function Footer() {
             </p>
             
             {/* Social Links */}
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-3">
               {socialLinks.map((social) => (
                 <Link
                   key={social.name}
@@ -92,13 +92,13 @@ export default function Footer() {
           </div>
 
           {/* Right Side - Nav Links */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-8">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 sm:gap-8">
             {navLinks.map((section) => (
-              <div key={section.title} className="flex flex-col gap-4">
+              <div key={section.title} className="flex flex-col gap-3">
                 <h3 className="font-semibold text-gray-900">
                   {section.title}
                 </h3>
-                <ul className="flex flex-col gap-3">
+                <ul className="flex flex-col gap-2.5">
                   {section.links.map((link) => (
                     <li key={link.name}>
                       <Link
@@ -117,12 +117,12 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-12 pt-8 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-gray-200 pt-6 sm:flex-row">
           <div className="text-gray-500 text-sm flex flex-col items-center sm:items-start text-center sm:text-left">
             <p>© 2026 RankersEdge Learning. All rights reserved.</p>
             <p>UniPrep is a platform operated by RankersEdge Learning</p>
           </div>
-          <div className="flex gap-6">
+          <div className="flex flex-wrap justify-center gap-5">
             <Link href="/footer/privacy-policy" className="text-gray-500 hover:text-gray-900 text-sm transition-colors">
               Privacy Policy
             </Link>

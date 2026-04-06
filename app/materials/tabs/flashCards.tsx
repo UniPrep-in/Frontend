@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { motion } from "framer-motion";
-import Skeletal from "@/app/components/ui/skeletal";
+import useSWR, { useSWRConfig } from "swr";
 import Loader from "@/app/components/ui/loader";
 import { MdOutlineArrowOutward } from "react-icons/md";
 import {
@@ -22,16 +22,9 @@ export default function FlashCards({
   const [activeTab, setActiveTab] = useState<"search" | "yourFlashcards">(
     "search",
   );
-  const [searchPage, setSearchPage] = useState<FlashcardsSearchPage | null>(
-    initialSearchPage,
-  );
-  const [searchLoading, setSearchLoading] = useState(!initialSearchPage);
-  const [searchError, setSearchError] = useState("");
-  const [userFlashcards, setUserFlashcards] = useState<Flashcard[]>([]);
   const [userLoading, setUserLoading] = useState(false);
   const [userError, setUserError] = useState("");
-  const [hasLoadedUserFlashcards, setHasLoadedUserFlashcards] =
-    useState(false);
+  const [shouldLoadUserFlashcards, setShouldLoadUserFlashcards] = useState(false);
   const [newWord, setNewWord] = useState("");
   const [newMeaning, setNewMeaning] = useState("");
   const [newType, setNewType] = useState("");
@@ -43,116 +36,75 @@ export default function FlashCards({
   const cardRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [page, setPage] = useState(initialSearchPage?.currentPage ?? 0);
+  const { mutate } = useSWRConfig();
 
-  useEffect(() => {
-    if (activeTab !== "search") {
-      return;
-    }
+  const searchKey = ["materials-flashcards-search", page] as const;
+  const {
+    data: searchPage,
+    error: searchError,
+    isLoading: searchLoading,
+  } = useSWR(
+    activeTab === "search" ? searchKey : null,
+    async ([, currentPage]: readonly [string, number]) => {
+      const response = await fetch(`/api/materials/flashcards?page=${currentPage}`);
 
-    if (searchPage && searchPage.currentPage === page) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const fetchSearchPage = async () => {
-      setSearchLoading(true);
-      setSearchError("");
-
-      try {
-        const response = await fetch(`/api/materials/flashcards?page=${page}`, {
-          cache: "no-store",
-        });
-
-        if (!response.ok) {
-          throw new Error("We could not load flashcards right now.");
-        }
-
-        const payload = (await response.json()) as FlashcardsSearchPage;
-
-        if (!cancelled) {
-          setSearchPage(payload);
-        }
-      } catch (error) {
-        console.error("Error fetching flashcards:", error);
-
-        if (!cancelled) {
-          setSearchError("We could not load flashcards right now.");
-          setSearchPage(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setSearchLoading(false);
-        }
+      if (!response.ok) {
+        throw new Error("We could not load flashcards right now.");
       }
-    };
 
-    void fetchSearchPage();
+      return (await response.json()) as FlashcardsSearchPage;
+    },
+    {
+      fallbackData:
+        page === (initialSearchPage?.currentPage ?? 0)
+          ? (initialSearchPage ?? undefined)
+          : undefined,
+      keepPreviousData: true,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    },
+  );
 
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab, page, searchPage]);
+  const {
+    data: userFlashcards = [],
+    error: userFlashcardsError,
+    isLoading: isUserFlashcardsLoading,
+    mutate: mutateUserFlashcards,
+  } = useSWR(
+    shouldLoadUserFlashcards ? ["materials-user-flashcards"] : null,
+    async () => {
+      const response = await fetch("/api/materials/flashcards?mode=mine");
 
-  useEffect(() => {
-    if (activeTab !== "yourFlashcards" || hasLoadedUserFlashcards) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const fetchUserFlashcards = async () => {
-      setUserLoading(true);
-      setUserError("");
-
-      try {
-        const response = await fetch("/api/materials/flashcards?mode=mine", {
-          cache: "no-store",
-        });
-        const payload = response.ok
-          ? ((await response.json()) as { cards: Flashcard[] })
-          : { cards: [] as Flashcard[] };
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            throw new Error("Please sign in to view your flashcards.");
-          }
-
-          throw new Error("We could not load your flashcards right now.");
-        }
-
-        if (!cancelled) {
-          setUserFlashcards(payload.cards);
-          setHasLoadedUserFlashcards(true);
-        }
-      } catch (error) {
-        console.error("Error fetching user flashcards:", error);
-
-        if (!cancelled) {
-          setUserError(
-            error instanceof Error
-              ? error.message
-              : "We could not load your flashcards right now.",
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setUserLoading(false);
-        }
+      if (response.status === 401) {
+        throw new Error("Please sign in to view your flashcards.");
       }
-    };
 
-    void fetchUserFlashcards();
+      if (!response.ok) {
+        throw new Error("We could not load your flashcards right now.");
+      }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [activeTab, hasLoadedUserFlashcards]);
+      const payload = (await response.json()) as { cards: Flashcard[] };
+      return payload.cards;
+    },
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+    },
+  );
 
   useEffect(() => {
     setCurrentIndex(0);
     setFlippedCards(new Set());
   }, [searchPage?.currentPage]);
+
+  useEffect(() => {
+    if (userFlashcardsError) {
+      setUserError(userFlashcardsError.message);
+      return;
+    }
+
+    setUserError("");
+  }, [userFlashcardsError]);
 
   async function handleAddFlashcard() {
     if (!newWord.trim() || !newMeaning.trim()) {
@@ -200,8 +152,15 @@ export default function FlashCards({
         throw new Error("Unable to add flashcard right now.");
       }
 
-      setUserFlashcards((current) => [...current, payload.card]);
-      setHasLoadedUserFlashcards(true);
+      await mutateUserFlashcards(
+        (current = []) => [...current, payload.card],
+        {
+          revalidate: false,
+          populateCache: true,
+        },
+      );
+      void mutate(searchKey);
+      setShouldLoadUserFlashcards(true);
       setNewWord("");
       setNewMeaning("");
       setNewType("");
@@ -291,13 +250,23 @@ export default function FlashCards({
     }
   }
 
+  function handleSearchTabClick() {
+    setActiveTab("search");
+  }
+
+  function handleYourFlashcardsTabClick() {
+    setUserError("");
+    setShouldLoadUserFlashcards(true);
+    setActiveTab("yourFlashcards");
+  }
+
   return (
-    <main>
-      <div className="flex items-center gap-2">
+    <main className="min-h-[42rem] py-1">
+      <div className="flex flex-wrap items-center justify-start gap-2">
         <button
           type="button"
           className="rounded-xl border bg-purple-300 px-4 py-2 text-black"
-          onClick={() => setActiveTab("search")}
+          onClick={handleSearchTabClick}
           disabled={activeTab === "search"}
         >
           View All Flashcards
@@ -305,7 +274,7 @@ export default function FlashCards({
         <button
           type="button"
           className="rounded-xl border bg-emerald-300 px-4 py-2 text-black"
-          onClick={() => setActiveTab("yourFlashcards")}
+          onClick={handleYourFlashcardsTabClick}
           disabled={activeTab === "yourFlashcards"}
         >
           Your Flashcards
@@ -313,14 +282,17 @@ export default function FlashCards({
       </div>
 
       {activeTab === "search" ? (
-        <div className="rounded-xl p-8">
+        <div className="rounded-xl pt-5 sm:pt-6">
           {searchLoading ? (
-            <div className="flex items-center justify-center">
-              <Skeletal />
+            <div className="flex min-h-[18rem] items-center justify-center rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 p-6">
+              <Loader
+                title="Loading flashcards"
+                subtitle="Getting your practice cards ready."
+              />
             </div>
           ) : searchError ? (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-6 py-10 text-center text-rose-700">
-              {searchError}
+              {searchError.message}
             </div>
           ) : currentFlashcard ? (
             <>
@@ -500,10 +472,13 @@ export default function FlashCards({
       ) : null}
 
       {activeTab === "yourFlashcards" ? (
-        <div>
-          {userLoading ? (
-            <div className="flex items-center justify-center">
-              <Loader />
+        <div className="pt-5">
+          {userLoading || isUserFlashcardsLoading ? (
+            <div className="flex min-h-[30rem] items-center justify-center rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 p-6">
+              <Loader
+                title="Loading your flashcards"
+                subtitle="Bringing your saved words into view."
+              />
             </div>
           ) : (
             <>

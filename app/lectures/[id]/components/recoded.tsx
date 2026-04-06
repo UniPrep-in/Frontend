@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Loader from "@/app/components/ui/loader";
 
 type Lecture = {
   id: string;
@@ -74,7 +75,14 @@ export default function RecordedPlayer({ lectureId }: RecordedPlayerProps) {
     : "";
 
   if (loading) {
-    return <p className="text-gray-500">Loading lecture...</p>;
+    return (
+      <div className="flex min-h-[18rem] items-center justify-center rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 p-6">
+        <Loader
+          title="Loading lecture"
+          subtitle="Preparing your recorded session."
+        />
+      </div>
+    );
   }
 
   if (!currentLecture) {

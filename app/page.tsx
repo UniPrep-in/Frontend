@@ -1,4 +1,3 @@
-import Navbar from "./components/ui/Navbar";
 import Hero from "./components/Hero";
 import StatsStrip from "./components/StatsStrip";
 import Grid from "./components/ui/grid";
@@ -6,7 +5,6 @@ import ImageCarousel from "./components/ui/infiniteCarousal";
 import CuetCoverage from "./components/CuetCoverage";
 import Reviews from "./components/Review";
 import Faq from "./components/faq";
-import Footer from "./components/Footer";
 import Pricing from "./components/pricing";
 import Coupon from "./components/ui/coupons";
 
@@ -14,7 +12,6 @@ export default function Home() {
   const logos = ["/logos/du.png", "/logos/srcc.png", "/logos/jnu.png", "/logos/st.png"];
   return (
     <main className="bg-white">
-      <Navbar />
       <Hero />
       <StatsStrip />
 
@@ -36,9 +33,6 @@ export default function Home() {
       <Reviews />
 
       <Faq />
-
-      <Footer />
-
       <div className="fixed bottom-0 left-1/2 z-50 w-full -translate-x-1/2 bg-black shadow-xl">
         <Coupon />
       </div>

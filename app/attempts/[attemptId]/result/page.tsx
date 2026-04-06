@@ -9,9 +9,6 @@ import {
   XCircle,
 } from "lucide-react";
 
-import Footer from "@/app/components/Footer";
-import Navbar from "@/app/components/ui/Navbar";
-
 import { getAttemptReviewData } from "../review-data";
 
 interface Props {
@@ -24,8 +21,6 @@ export default async function ResultPage({ params }: Props) {
 
   return (
     <main className="bg-neutral-100">
-      <Navbar />
-
       <div className="mx-auto max-w-6xl px-4 py-12">
         <div className="mb-4 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
@@ -172,8 +167,6 @@ export default async function ResultPage({ params }: Props) {
           </Link>
         </div>
       </div>
-
-      <Footer />
     </main>
   );
 }

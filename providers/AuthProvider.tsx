@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
+import useSWR from "swr";
 import { createClient } from "@/lib/supabase/client";
 
 export type AuthProfile = {
@@ -21,48 +22,73 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const supabase = createClient();
 
-async function getAuthProfile(userId: string): Promise<AuthProfile | null> {
-  const { data } = await supabase
-    .from("profiles")
-    .select("avatar_url, phone, plan_id, payment_status")
-    .eq("id", userId)
-    .maybeSingle();
+async function getAuthProfile(): Promise<AuthProfile | null> {
+  const response = await fetch("/api/me", {
+    credentials: "include",
+  });
 
-  return data
-    ? {
-        avatar_url: data.avatar_url ?? null,
-        phone: data.phone ?? null,
-        plan_id: data.plan_id ?? null,
-        payment_status: data.payment_status ?? null,
-      }
-    : null;
+  if (response.status === 401) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error("Unable to load profile right now.");
+  }
+
+  const payload = (await response.json()) as { profile?: AuthProfile | null };
+  return payload.profile ?? null;
 }
 
 export function AuthProvider({
   children,
-  initialUser,
-  initialProfile,
 }: {
   children: React.ReactNode;
-  initialUser: User | null;
-  initialProfile: AuthProfile | null;
 }) {
-  const [user, setUser] = useState<User | null>(initialUser);
-  const [profile, setProfile] = useState<AuthProfile | null>(initialProfile);
-  const [isAuthLoading, setIsAuthLoading] = useState(false);
-  const activeUserIdRef = useRef<string | null>(initialUser?.id ?? null);
+  const [user, setUser] = useState<User | null>(null);
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const activeUserIdRef = useRef<string | null>(null);
+
+  const {
+    data: profile,
+    mutate: mutateProfile,
+    isLoading: isProfileLoading,
+  } = useSWR(user ? ["auth-profile", user.id] : null, getAuthProfile, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+  });
+
+  const isAuthLoading = useMemo(
+    () => isBootstrapping || (Boolean(user) && isProfileLoading && typeof profile === "undefined"),
+    [isBootstrapping, isProfileLoading, profile, user],
+  );
 
   const refreshProfile = async () => {
     if (!user) {
-      setProfile(null);
       return;
     }
 
-    setProfile(await getAuthProfile(user.id));
+    await mutateProfile();
   };
 
   useEffect(() => {
     let isMounted = true;
+
+    const bootstrapAuth = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!isMounted) {
+        return;
+      }
+
+      const currentUser = session?.user ?? null;
+      activeUserIdRef.current = currentUser?.id ?? null;
+      setUser(currentUser);
+      setIsBootstrapping(false);
+    };
+
+    void bootstrapAuth();
 
     const {
       data: { subscription },
@@ -77,11 +103,10 @@ export function AuthProvider({
         const previousUserId = activeUserIdRef.current;
 
         setUser(currentUser);
+        setIsBootstrapping(false);
 
         if (!currentUser) {
           activeUserIdRef.current = null;
-          setProfile(null);
-          setIsAuthLoading(false);
           return;
         }
 
@@ -90,16 +115,6 @@ export function AuthProvider({
         }
 
         activeUserIdRef.current = nextUserId;
-        setIsAuthLoading(true);
-
-        const nextProfile = await getAuthProfile(currentUser.id);
-
-        if (!isMounted || activeUserIdRef.current !== currentUser.id) {
-          return;
-        }
-
-        setProfile(nextProfile);
-        setIsAuthLoading(false);
       },
     );
 
@@ -114,7 +129,9 @@ export function AuthProvider({
   }, [user?.id]);
 
   return (
-    <AuthContext.Provider value={{ user, profile, isAuthLoading, refreshProfile }}>
+    <AuthContext.Provider
+      value={{ user, profile: profile ?? null, isAuthLoading, refreshProfile }}
+    >
       {children}
     </AuthContext.Provider>
   );

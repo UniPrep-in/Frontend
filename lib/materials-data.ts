@@ -205,6 +205,18 @@ export async function getFlashcardsSearchPage(
   };
 }
 
+const getCachedFlashcardsSearchPageInternal = unstable_cache(
+  async (page: number, pageSize: number) => {
+    return getFlashcardsSearchPage(createAdminClient(), page, pageSize);
+  },
+  ["materials-flashcards-search-page"],
+  { revalidate: 300 },
+);
+
+export async function getCachedFlashcardsSearchPage(page: number) {
+  return getCachedFlashcardsSearchPageInternal(page, FLASHCARDS_PAGE_SIZE);
+}
+
 export async function getUserFlashcards(
   supabase: SupabaseClient,
   userId: string,

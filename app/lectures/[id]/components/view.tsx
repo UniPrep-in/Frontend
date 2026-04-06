@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import LectureChat from "./chat";
+import Loader from "@/app/components/ui/loader";
 
 type Lecture = {
   id: string;
@@ -72,7 +73,12 @@ export default function LecturesView({ lectureId }: { lectureId: string }) {
         <h2 className="text-xl font-semibold mb-4">Live Lecture</h2>
 
         {loading ? (
-          <p className="text-gray-500">Loading lecture...</p>
+          <div className="flex min-h-[18rem] items-center justify-center rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 p-6">
+            <Loader
+              title="Loading lecture"
+              subtitle="Joining the live session for you."
+            />
+          </div>
         ) : liveLecture ? (
           <div className="flex flex-col md:flex-row gap-6">
             <div className="flex-1 bg-black rounded-lg overflow-hidden">

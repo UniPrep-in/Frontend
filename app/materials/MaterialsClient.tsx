@@ -2,46 +2,43 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import type { FlashcardsSearchPage } from "@/lib/materials-data";
+import Loader from "@/app/components/ui/loader";
 
 const Notes = dynamic(() => import("./tabs/notes"), {
   loading: () => (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-sm text-neutral-600 shadow-sm">
-      Loading notes...
+    <div className="flex min-h-[18rem] items-center justify-center rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 p-6 shadow-sm">
+      <Loader title="Loading notes" subtitle="Bringing your study notes into view." />
     </div>
   ),
 });
 
 const FlashCards = dynamic(() => import("./tabs/flashCards"), {
   loading: () => (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-sm text-neutral-600 shadow-sm">
-      Loading flashcards...
+    <div className="flex min-h-[18rem] items-center justify-center rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 p-6 shadow-sm">
+      <Loader
+        title="Loading flashcards"
+        subtitle="Shuffling your cards into place."
+      />
     </div>
   ),
 });
 
 const Pyq = dynamic(() => import("./tabs/pyq"), {
   loading: () => (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-6 text-sm text-neutral-600 shadow-sm">
-      Loading PYQs...
+    <div className="flex min-h-[18rem] items-center justify-center rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 p-6 shadow-sm">
+      <Loader title="Loading PYQs" subtitle="Fetching previous-year questions for you." />
     </div>
   ),
 });
 
-type MaterialsClientProps = {
-  initialFlashcardsPage: FlashcardsSearchPage;
-};
-
-export default function MaterialsClient({
-  initialFlashcardsPage,
-}: MaterialsClientProps) {
+export default function MaterialsClient() {
   const [activeTab, setActiveTab] = useState<"Flash Cards" | "Notes" | "PYQs">(
     "Flash Cards",
   );
 
   return (
-    <div>
-      <div className="flex gap-2 px-8 pt-6">
+    <div className="flex flex-1 flex-col">
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-4 sm:px-8">
         <button
           type="button"
           onClick={() => setActiveTab("Flash Cards")}
@@ -67,12 +64,12 @@ export default function MaterialsClient({
         </button>
       </div>
 
-      <div className="px-8 py-4">
-        {activeTab === "Notes" ? <Notes /> : null}
-        {activeTab === "Flash Cards" ? (
-          <FlashCards initialSearchPage={initialFlashcardsPage} />
-        ) : null}
-        {activeTab === "PYQs" ? <Pyq /> : null}
+      <div className="flex-1 px-4 py-2 sm:px-8">
+        <div className="min-h-[42rem]">
+          {activeTab === "Notes" ? <Notes /> : null}
+          {activeTab === "Flash Cards" ? <FlashCards initialSearchPage={null} /> : null}
+          {activeTab === "PYQs" ? <Pyq /> : null}
+        </div>
       </div>
     </div>
   );
