@@ -13,20 +13,13 @@ export async function GET(req: Request) {
     const supabase = await createClient();
     const {
       data: { user },
-      error: authError,
     } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: "Please sign in to view mock tests." },
-        { status: 401 },
-      );
-    }
 
     const { searchParams } = new URL(req.url);
     const adminSupabase = createAdminClient();
-    const { data: subscriptionAccess, error: accessError } =
-      await getLatestVerifiedSubscriptionAccess(adminSupabase, user.id);
+    const { data: subscriptionAccess, error: accessError } = user
+      ? await getLatestVerifiedSubscriptionAccess(adminSupabase, user.id)
+      : { data: null, error: null };
 
     if (accessError) {
       console.error("Failed to load mock access", accessError);
@@ -44,6 +37,7 @@ export async function GET(req: Request) {
     const currentPage = Number.isInteger(page) && page > 0 ? page : 1;
     const data = await getMockTestsPageData({
       access,
+      userId: user?.id ?? null,
       category,
       subject,
       page: currentPage,

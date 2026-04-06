@@ -1,6 +1,12 @@
 import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  hasConsumedFreeMock,
+  getLatestOpenAttemptIdsByTest,
+  getSingleMockPricePaise,
+  getVerifiedPurchasedTestIds,
+} from "@/lib/mock-test-purchases";
+import {
   getMockContentCategory,
   normalizeContentStreamLabel,
   resolveContentMeta,
@@ -19,6 +25,12 @@ export type MockTest = {
   subject: string;
   stream: string;
   year: number;
+  isPurchased: boolean;
+  hasSubscriptionAccess: boolean;
+  hasFreeMockAvailable: boolean;
+  activeAttemptId: string | null;
+  canAccess: boolean;
+  singleMockPricePaise: number;
 };
 
 export type MockTestsPageResponse = {
@@ -42,6 +54,7 @@ type TestRow = {
 
 type GetMockTestsPageDataInput = {
   access: SubscriptionAccess;
+  userId?: string | null;
   category: ContentCategory;
   subject?: string;
   page: number;
@@ -201,7 +214,15 @@ async function fetchCandidateTests(
 function mapTestForDisplay(
   test: TestRow,
   baseStreamLabel: MainStreamLabel,
-): MockTest {
+): Omit<
+  MockTest,
+  | "isPurchased"
+  | "hasSubscriptionAccess"
+  | "hasFreeMockAvailable"
+  | "activeAttemptId"
+  | "canAccess"
+  | "singleMockPricePaise"
+> {
   const testCategory =
     getMockContentCategory(test.stream, test.subject, baseStreamLabel) ?? "main";
 
@@ -301,6 +322,7 @@ const getCachedCandidateTests = unstable_cache(
 
 export async function getMockTestsPageData({
   access,
+  userId = null,
   category,
   subject = "",
   page,
@@ -351,11 +373,72 @@ export async function getMockTestsPageData({
   const totalPages = Math.ceil(totalCount / pageSize);
   const from = (normalizedPage - 1) * pageSize;
   const paginatedTests = filteredTests.slice(from, from + pageSize);
+  const adminSupabase = createAdminClient();
+  const hasSubscriptionAccess = access.isSubscriber;
+  const [
+    { data: purchasedTestIds, error: purchasesError },
+    freeMockResult,
+    { data: openAttemptIdsByTest, error: openAttemptsError },
+    priceResult,
+  ] =
+    await Promise.all([
+      userId
+        ? getVerifiedPurchasedTestIds(
+            adminSupabase,
+            userId,
+            paginatedTests.map((test) => test.id),
+          )
+        : Promise.resolve({ data: new Set<string>(), error: null }),
+      userId
+        ? hasConsumedFreeMock(adminSupabase, userId)
+        : Promise.resolve({ data: false, error: null }),
+      userId
+        ? getLatestOpenAttemptIdsByTest(
+            adminSupabase,
+            userId,
+            paginatedTests.map((test) => test.id),
+          )
+        : Promise.resolve({ data: new Map<string, string>(), error: null }),
+      getSingleMockPricePaise(adminSupabase),
+    ]);
+
+  if (purchasesError) {
+    throw purchasesError;
+  }
+
+  if (freeMockResult.error) {
+    throw freeMockResult.error;
+  }
+
+  if (openAttemptsError) {
+    throw openAttemptsError;
+  }
+
+  if (priceResult.error || !priceResult.data) {
+    throw new Error(priceResult.error?.message || "Single mock price is not configured");
+  }
+
+  const hasFreeMockAvailable = Boolean(userId) && !hasSubscriptionAccess && !freeMockResult.data;
 
   return {
-    tests: paginatedTests.map((test) =>
-      mapTestForDisplay(test, access.baseStreamLabel),
-    ),
+    tests: paginatedTests.map((test) => {
+      const isPurchased = purchasedTestIds.has(test.id);
+      const activeAttemptId = openAttemptIdsByTest.get(test.id) ?? null;
+
+      return {
+        ...mapTestForDisplay(test, access.baseStreamLabel),
+        isPurchased,
+        hasSubscriptionAccess,
+        hasFreeMockAvailable,
+        activeAttemptId,
+        canAccess:
+          hasSubscriptionAccess ||
+          isPurchased ||
+          hasFreeMockAvailable ||
+          Boolean(activeAttemptId),
+        singleMockPricePaise: priceResult.data,
+      };
+    }),
     totalPages,
     currentPage: normalizedPage,
     totalCount,
