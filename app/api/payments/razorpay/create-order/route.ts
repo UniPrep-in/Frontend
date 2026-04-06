@@ -84,12 +84,15 @@ export async function POST(req: Request) {
       amountPaise: amountSnapshot.finalAmountPaise,
       currency: "INR",
       receipt: `${plan.id}-${Date.now()}`,
-      userId: user.id,
-      planId: plan.id,
-      planName: `${plan.planType} - ${plan.name}`,
-      stream,
-      includeGat,
-      extraNotes: couponSnapshotNotes,
+      notes: {
+        purchase_type: "subscription",
+        user_id: user.id,
+        plan_id: plan.id,
+        plan_name: `${plan.planType} - ${plan.name}`,
+        stream,
+        include_gat: String(includeGat),
+        ...couponSnapshotNotes,
+      },
     });
 
     const { error: subscriptionError } = await createPendingSubscription(

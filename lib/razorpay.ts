@@ -7,11 +7,14 @@ type RazorpayOrder = {
   amount: number;
   currency: string;
   notes?: {
+    purchase_type?: string;
     user_id?: string;
     plan_id?: string;
     plan_name?: string;
     stream?: string;
     include_gat?: string;
+    test_id?: string;
+    test_title?: string;
     coupon_code?: string;
     coupon_id?: string;
     coupon_discount_type?: string;
@@ -30,11 +33,14 @@ type RazorpayPaymentEntity = {
   currency: string;
   created_at?: number;
   notes?: {
+    purchase_type?: string;
     user_id?: string;
     plan_id?: string;
     plan_name?: string;
     stream?: string;
     include_gat?: string;
+    test_id?: string;
+    test_title?: string;
     coupon_code?: string;
     coupon_id?: string;
     coupon_discount_type?: string;
@@ -98,15 +104,10 @@ export async function createRazorpayOrder(input: {
   amountPaise: number;
   currency: string;
   receipt: string;
-  userId: string;
-  planId: string;
-  planName: string;
-  stream: string;
-  includeGat: boolean;
-  extraNotes?: Record<string, string | number | boolean | null | undefined>;
+  notes: Record<string, string | number | boolean | null | undefined>;
 }) {
-  const extraNotes = Object.fromEntries(
-    Object.entries(input.extraNotes ?? {}).flatMap(([key, value]) =>
+  const notes = Object.fromEntries(
+    Object.entries(input.notes).flatMap(([key, value]) =>
       value === undefined || value === null ? [] : [[key, String(value)]],
     ),
   );
@@ -121,14 +122,7 @@ export async function createRazorpayOrder(input: {
       amount: input.amountPaise,
       currency: input.currency,
       receipt: input.receipt,
-      notes: {
-        user_id: input.userId,
-        plan_id: input.planId,
-        plan_name: input.planName,
-        stream: input.stream,
-        include_gat: String(input.includeGat),
-        ...extraNotes,
-      },
+      notes,
     }),
     cache: "no-store",
   });

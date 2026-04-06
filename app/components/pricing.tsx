@@ -7,6 +7,10 @@ import { PLAN_CATALOG, type PlanDefinition, type PlanId } from "@/lib/plans";
 import { X } from "lucide-react";
 import { useAuth } from "@/providers/AuthProvider";
 import {
+  loadRazorpayCheckoutScript,
+  type RazorpaySuccessResponse,
+} from "@/lib/razorpay-checkout";
+import {
   STREAM_OPTIONS,
   type StreamKey,
   getDisplayPriceRupees,
@@ -28,12 +32,6 @@ type CheckoutOrderResponse = {
   discountAmountPaise: number;
   finalAmountPaise: number;
   couponCode?: string | null;
-};
-
-type RazorpaySuccessResponse = {
-  razorpay_payment_id: string;
-  razorpay_order_id: string;
-  razorpay_signature: string;
 };
 
 type VerifyPaymentResponse = {
@@ -60,50 +58,11 @@ type CouponValidationResponse = {
   finalAmountPaise?: number;
   error?: string;
 };
-
-type RazorpayInstance = {
-  open: () => void;
-};
-
-type RazorpayConstructor = new (options: Record<string, unknown>) => RazorpayInstance;
-
-declare global {
-  interface Window {
-    Razorpay?: RazorpayConstructor;
-  }
-}
-
-let razorpayScriptPromise: Promise<boolean> | null = null;
 const CHECKOUT_ERROR_MESSAGE =
   "We couldn't start checkout right now. Please try again in a moment.";
 const VERIFY_ERROR_MESSAGE =
   "We couldn't confirm your payment right now. If money was deducted, please contact support.";
 const AUTH_ERROR_MESSAGE = "Please sign in and try again.";
-
-function loadRazorpayCheckoutScript() {
-  if (typeof window === "undefined") {
-    return Promise.resolve(false);
-  }
-
-  if (window.Razorpay) {
-    return Promise.resolve(true);
-  }
-
-  if (razorpayScriptPromise) {
-    return razorpayScriptPromise;
-  }
-
-  razorpayScriptPromise = new Promise((resolve) => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-
-  return razorpayScriptPromise;
-}
 
 function getCheckoutErrorMessage(status?: number) {
   if (status === 401) {

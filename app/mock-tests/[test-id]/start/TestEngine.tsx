@@ -137,10 +137,14 @@ export default function TestEngine({
 
   useEffect(() => {
     history.pushState(null, "", location.href);
-    const handlePopState = () => history.pushState(null, "", location.href);
+    const handlePopState = () => {
+      window.removeEventListener("popstate", handlePopState);
+      router.replace("/mock-tests");
+    };
+
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {

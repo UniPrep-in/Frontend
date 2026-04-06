@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import TestEngine from "./TestEngine";
+import { getMockAccessState } from "@/lib/mock-test-purchases";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function StartTestPage({
   params,
@@ -14,9 +16,10 @@ export default async function StartTestPage({
   const resolvedSearchParams = await searchParams;
 
   const testId = resolvedParams["test-id"];
-  const attemptId = resolvedSearchParams?.attemptId;
-
-  if (!attemptId) redirect("/mock-tests");
+  const attemptId =
+    resolvedSearchParams?.attemptId && resolvedSearchParams.attemptId !== "undefined"
+      ? resolvedSearchParams.attemptId
+      : null;
 
   const cookieStore = await cookies();
 
@@ -41,24 +44,76 @@ export default async function StartTestPage({
 
   if (!user) redirect("/auth");
 
-  // Validate attempt
-  const { data: attempt } = await supabase
-    .from("test_attempts")
-    .select("*")
-    .eq("id", attemptId)
-    .eq("user_id", user.id)
-    .eq("test_id", testId)
-    .maybeSingle();
+  const adminSupabase = createAdminClient();
+  const { data: access, error: accessError } = await getMockAccessState(
+    adminSupabase,
+    user.id,
+    testId,
+  );
 
-  if (!attempt) redirect("/mock-tests");
+  if (accessError) {
+    console.error("Failed to resolve mock access on start page", accessError);
+    redirect("/mock-tests");
+  }
+
+  if (!access?.canAccess) {
+    redirect("/mock-tests");
+  }
+
+  let resolvedAttemptId = attemptId;
+
+  if (resolvedAttemptId) {
+    const { data: attempt, error: attemptError } = await adminSupabase
+      .from("test_attempts")
+      .select("id")
+      .eq("id", resolvedAttemptId)
+      .eq("user_id", user.id)
+      .eq("test_id", testId)
+      .maybeSingle();
+
+    if (attemptError) {
+      console.error("Failed to validate test attempt", attemptError);
+      redirect("/mock-tests");
+    }
+
+    if (!attempt) {
+      resolvedAttemptId = null;
+    }
+  }
+
+  if (!resolvedAttemptId && access.activeAttemptId) {
+    resolvedAttemptId = access.activeAttemptId;
+  }
+
+  if (!resolvedAttemptId) {
+    const { data: attempt, error: attemptError } = await adminSupabase
+      .from("test_attempts")
+      .insert({
+        user_id: user.id,
+        test_id: testId,
+      })
+      .select("id")
+      .single();
+
+    if (attemptError || !attempt?.id) {
+      console.error("Failed to create test attempt on start page", attemptError);
+      redirect("/mock-tests");
+    }
+
+    resolvedAttemptId = attempt.id;
+  }
+
+  if (!resolvedAttemptId) {
+    redirect("/mock-tests");
+  }
 
   const [testRes, questionsRes] = await Promise.all([
-    supabase
+    adminSupabase
       .from("tests")
       .select("duration_minutes")
       .eq("id", testId)
       .single(),
-    supabase
+    adminSupabase
       .from("questions")
       .select(
         `
@@ -88,7 +143,7 @@ export default async function StartTestPage({
   return (
     <TestEngine
       questions={questions}
-      attemptId={attemptId}
+      attemptId={resolvedAttemptId}
       durationMinutes={test.duration_minutes}
     />
   );

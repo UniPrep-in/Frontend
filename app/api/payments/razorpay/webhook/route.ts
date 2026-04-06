@@ -5,6 +5,11 @@ import {
   recordCouponMetricsForSuccessfulPayment,
 } from "@/lib/coupons";
 import {
+  getSingleMockPricePaise,
+  markMockPurchaseFailed,
+  markMockPurchaseVerified,
+} from "@/lib/mock-test-purchases";
+import {
   getRazorpayOrder,
   getRazorpayPayment,
   verifyRazorpayWebhookSignature,
@@ -82,6 +87,100 @@ export async function POST(req: Request) {
       getRazorpayPayment(paymentId),
       getRazorpayOrder(orderId),
     ]);
+
+    if (order.notes?.purchase_type === "mock_test") {
+      const userId = order.notes?.user_id?.trim() || "";
+      const testId = order.notes?.test_id?.trim() || "";
+      const testTitle = order.notes?.test_title?.trim() || "";
+      const adminSupabase = createAdminClient();
+      const [{ data: test, error: testError }, priceResult] = await Promise.all([
+        adminSupabase
+          .from("tests")
+          .select("id, title")
+          .eq("id", testId)
+          .maybeSingle(),
+        getSingleMockPricePaise(adminSupabase),
+      ]);
+
+      if (testError) {
+        console.error("Failed to load mock test during webhook verification", testError);
+        return NextResponse.json(
+          { error: "Unable to process webhook" },
+          { status: 500 },
+        );
+      }
+
+      if (!userId || !testId || !test || !testTitle) {
+        return NextResponse.json(
+          { error: "Webhook metadata is incomplete" },
+          { status: 400 },
+        );
+      }
+
+      if (priceResult.error || !priceResult.data) {
+        console.error("Failed to load single mock price during webhook verification", priceResult.error);
+        return NextResponse.json(
+          { error: "Unable to process webhook" },
+          { status: 500 },
+        );
+      }
+
+      const expectedAmount = getExpectedAmountPaiseFromOrderNotes(
+        order.notes,
+        priceResult.data,
+      );
+
+      if (
+        payment.order_id !== orderId ||
+        payment.amount !== expectedAmount ||
+        payment.currency !== "INR" ||
+        order.amount !== expectedAmount ||
+        order.currency !== "INR" ||
+        order.notes?.user_id !== userId ||
+        order.notes?.purchase_type !== "mock_test" ||
+        order.notes?.test_id !== test.id ||
+        order.notes?.test_title !== test.title ||
+        testTitle !== test.title
+      ) {
+        await markMockPurchaseFailed(adminSupabase, {
+          userId,
+          testId,
+          orderId,
+          paymentId,
+          failureReason: "Webhook payment details did not match the selected mock test",
+        });
+
+        return NextResponse.json(
+          { error: "Webhook payment details do not match the selected mock test" },
+          { status: 400 },
+        );
+      }
+
+      const { error: purchaseError } = await markMockPurchaseVerified(
+        adminSupabase,
+        {
+          userId,
+          testId: test.id,
+          orderId,
+          paymentId,
+          signature: null,
+        },
+      );
+
+      if (purchaseError) {
+        console.error("Failed to mark mock purchase verified from webhook", purchaseError);
+        return NextResponse.json(
+          { error: "Unable to process webhook" },
+          { status: 500 },
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        testId: test.id,
+        paymentStatus: "verified",
+      });
+    }
 
     const userId = order.notes?.user_id?.trim() || "";
     const planId = order.notes?.plan_id?.trim() || "";

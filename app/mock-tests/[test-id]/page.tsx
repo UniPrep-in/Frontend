@@ -6,8 +6,8 @@ import ProceedLoader from "./ProceedLoader";
 import MockTestInstructionsContent, {
   PROCEED_CONFIRMATION_TEXT,
 } from "./MockTestInstructionsContent";
+import { getMockAccessState } from "@/lib/mock-test-purchases";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getLatestVerifiedSubscriptionAccess } from "@/lib/subscriptions";
 
 export default async function TestInstructionsPage({
   params,
@@ -46,7 +46,7 @@ export default async function TestInstructionsPage({
 
   const adminSupabase = createAdminClient();
   const [accessResult, testResult] = await Promise.all([
-    getLatestVerifiedSubscriptionAccess(adminSupabase, user.id),
+    getMockAccessState(adminSupabase, user.id, testId),
     supabase
       .from("tests")
       .select("id, title, duration_minutes")
@@ -62,7 +62,7 @@ export default async function TestInstructionsPage({
     redirect("/mock-tests");
   }
 
-  if (!access) {
+  if (!access?.canAccess) {
     redirect("/mock-tests");
   }
 
@@ -99,28 +99,22 @@ export default async function TestInstructionsPage({
     }
 
     const adminSupabase = createAdminClient();
-    const { data: access, error: accessError } =
-      await getLatestVerifiedSubscriptionAccess(adminSupabase, user.id);
+    const { data: access, error: accessError } = await getMockAccessState(
+      adminSupabase,
+      user.id,
+      testId,
+    );
 
     if (accessError) {
       console.error("Failed to load mock access", accessError);
       redirect("/mock-tests");
     }
 
-    if (!access) {
+    if (!access?.canAccess) {
       redirect("/mock-tests");
     }
 
-    const { data: attempt } = await supabase
-      .from("test_attempts")
-      .insert({
-        user_id: user.id,
-        test_id: testId,
-      })
-      .select("id")
-      .single();
-
-    redirect(`/mock-tests/${testId}/start?attemptId=${attempt?.id}`);
+    redirect(`/mock-tests/${testId}/start`);
   }
 
   return (

@@ -29,16 +29,11 @@ export default async function MockTestsPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  let access: SubscriptionAccess | null = null;
-
-  if (user) {
-    const adminSupabase = createAdminClient();
-    const { data } = await getLatestVerifiedSubscriptionAccess(
-      adminSupabase,
-      user.id,
-    );
-    access = data ?? createBrowseAccess(resolvedSearchParams.stream);
-  }
+  const adminSupabase = createAdminClient();
+  const { data } = user
+    ? await getLatestVerifiedSubscriptionAccess(adminSupabase, user.id)
+    : { data: null };
+  const access: SubscriptionAccess = data ?? createBrowseAccess(resolvedSearchParams.stream);
 
   const subjectOptionsByStream = await getSubjectOptionsByStream();
   const initialStream = normalizeStreamLabel(resolvedSearchParams.stream, access);
@@ -50,14 +45,13 @@ export default async function MockTestsPage({
   );
   const initialPage = parsePage(resolvedSearchParams.page);
   const { category, subject } = getRequestParams(initialCategory, availableSubjects);
-  const initialMockTestsData = access
-    ? await getMockTestsPageData({
-        access,
-        category,
-        subject,
-        page: initialPage,
-      })
-    : null;
+  const initialMockTestsData = await getMockTestsPageData({
+    access,
+    userId: user?.id ?? null,
+    category,
+    subject,
+    page: initialPage,
+  });
 
   return (
     <main className="flex flex-col items-center justify-center">
@@ -88,11 +82,11 @@ function parsePage(value?: string) {
 
 function normalizeInitialCategory(
   value: string | undefined,
-  access: SubscriptionAccess | null,
+  access: SubscriptionAccess,
   subjects: string[],
 ) {
   if (value === "all" || value === "english" || value === "gat") {
-    if (!access || access.allowedCategories.includes(value)) {
+    if (access.allowedCategories.includes(value)) {
       return value;
     }
   }
@@ -106,7 +100,7 @@ function normalizeInitialCategory(
 
 function normalizeStreamLabel(
   value: string | undefined,
-  access: SubscriptionAccess | null,
+  access: SubscriptionAccess,
 ): MainStreamLabel {
   const normalized = value?.trim().toLowerCase();
 
@@ -121,11 +115,11 @@ function normalizeStreamLabel(
           ? "Arts"
           : null;
 
-  if (label && access?.selectableMainStreams.includes(label)) {
+  if (label && access.selectableMainStreams.includes(label)) {
     return label;
   }
 
-  return access?.baseStreamLabel ?? "Science";
+  return access.baseStreamLabel;
 }
 
 function getRequestParams(category: string, subjects: string[]) {
