@@ -1,213 +1,130 @@
 'use client';
-import React, { useState } from 'react';
+
 import styled from 'styled-components';
 
-const quotes = [
-  "Less Stress, More Success",
-  "Stop Worrying, Start Scoring",
-  "Mocks Today, Merit list tomorrrow",
-  "Small Daily wins, Big final score",
-  "Stay Consistent, Stay Ahead",
-]
+type LoaderProps = {
+  title?: string;
+  subtitle?: string;
+  className?: string;
+  compact?: boolean;
+  showText?: boolean;
+};
 
-const Loader = () => {
-  const [randomQuote, setRandomQuote] = useState<string | null>(null);
+const DEFAULT_TITLE = 'Loading UniPrep';
+const DEFAULT_SUBTITLE = 'Setting up your next step with a little sunshine.';
 
-  React.useEffect(() => {
-    const index = Math.floor(Math.random() * quotes.length);
-    setRandomQuote(quotes[index]);
-  }, []);
+export default function Loader({
+  title = DEFAULT_TITLE,
+  subtitle = DEFAULT_SUBTITLE,
+  className,
+  compact = false,
+  showText = true,
+}: LoaderProps) {
   return (
-    <StyledWrapper>
-      <div className="flex flex-col items-center justify-center gap-8">
-        <div className="container">
-          <div className="ball">
-            <div className="inner">
-              <div className="line" />
-              <div className="line line--two" />
-              <div className="oval" />
-              <div className="oval oval--two" />
-            </div>
-          </div>
-          <div className="shadow" />
-          </div>
-
-        <div className='flex flex-col items-center justify-center mt-20'>
-          <h1 className='text-lg'>Meanwhile this loads, take a look at me!</h1>
-          <span className='text-xl' suppressHydrationWarning>
-            {randomQuote ?? ""}
-          </span>
+    <StyledWrapper $compact={compact} className={className}>
+      <div className="shell" role="status" aria-live="polite" aria-busy="true">
+        <div className="dots" aria-hidden="true">
+          <span />
+          <span />
+          <span />
         </div>
+
+        {showText ? (
+          <div className="copy">
+            <p className="title">{title}</p>
+            <p className="subtitle">{subtitle}</p>
+          </div>
+        ) : null}
       </div>
     </StyledWrapper>
   );
 }
 
-const StyledWrapper = styled.div`
-  @keyframes rotateBall {
-    0% {
-      transform: rotateY(0deg) rotateX(0deg) rotateZ(0deg);
-    }
-    50% {
-      transform: rotateY(360deg) rotateX(360deg) rotateZ(0deg);
-    }
+const StyledWrapper = styled.div<{ $compact: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  .shell {
+    display: flex;
+    width: ${({ $compact }) => ($compact ? "auto" : "min(100%, 19rem)")};
+    flex-direction: column;
+    align-items: center;
+    gap: 1.1rem;
+    border-radius: 2.4rem;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 247, 237, 0.98)),
+      radial-gradient(circle at top, rgba(254, 243, 199, 0.7), transparent 60%);
+    padding: ${({ $compact }) => ($compact ? "0" : "1.5rem 1.75rem")};
+    box-shadow: ${({ $compact }) =>
+      $compact
+        ? "none"
+        : "0 18px 45px rgba(245, 158, 11, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9)"};
+    text-align: center;
+  }
+
+  .dots {
+    display: inline-flex;
+    align-items: center;
+    gap: ${({ $compact }) => ($compact ? "0.45rem" : "0.8rem")};
+    padding: ${({ $compact }) => ($compact ? "0" : "0.9rem 1.1rem")};
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(255, 247, 237, 0.96), rgba(255, 237, 213, 0.92));
+    box-shadow: ${({ $compact }) =>
+      $compact
+        ? "none"
+        : "inset 0 1px 0 rgba(255, 255, 255, 0.88), 0 12px 28px rgba(251, 146, 60, 0.16)"};
+  }
+
+  .dots span {
+    width: ${({ $compact }) => ($compact ? "0.5rem" : "1rem")};
+    height: ${({ $compact }) => ($compact ? "0.5rem" : "1rem")};
+    border-radius: 999px;
+    background: linear-gradient(180deg, #fbbf24, #fb923c);
+    box-shadow: ${({ $compact }) =>
+      $compact ? "none" : "0 0 0 0.2rem rgba(255, 237, 213, 0.85)"};
+    animation: bounceDot 1s ease-in-out infinite;
+  }
+
+  .dots span:nth-child(2) {
+    animation-delay: 0.16s;
+  }
+
+  .dots span:nth-child(3) {
+    animation-delay: 0.32s;
+  }
+
+  .copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .title {
+    margin: 0;
+    color: #7c2d12;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+
+  .subtitle {
+    margin: 0;
+    color: #9a3412;
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  @keyframes bounceDot {
+    0%,
     100% {
-      transform: rotateY(720deg) rotateX(720deg) rotateZ(360deg);
-    }
-  }
-
-  @keyframes bounceBall {
-    0% {
-      transform: translateY(-70px) scale(1, 1);
-    }
-    15% {
-      transform: translateY(-56px) scale(1, 1);
-    }
-    45% {
-      transform: translateY(70px) scale(1, 1);
-    }
-    50% {
-      transform: translateY(73.5px) scale(1, 0.92);
-    }
-    55% {
-      transform: translateY(70px) scale(1, 0.95);
-    }
-    85% {
-      transform: translateY(-56px) scale(1, 1);
-    }
-    95% {
-      transform: translateY(-70px) scale(1, 1);
-    }
-    100% {
-      transform: translateY(-70px) scale(1, 1);
-    }
-  }
-
-  .ball {
-    animation-name: bounceBall;
-    animation-duration: 1.2s;
-    animation-iteration-count: infinite;
-    animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
-    border-radius: 50%;
-    height: 60px;
-    position: relative;
-    transform: translateY(-70px);
-    transform-style: preserve-3d;
-    width: 60px;
-    z-index: 1;
-  }
-
-  .ball::before {
-    background: radial-gradient(circle at 36px 20px, #ff8c16, #b35100);
-    border: 2px solid #333333;
-    border-radius: 50%;
-    content: "";
-    height: calc(100% + 6px);
-    left: -6px;
-    position: absolute;
-    top: -3px;
-    transform: translateZ(1vmin);
-    width: calc(100% + 6px);
-  }
-
-  .ball .inner {
-    animation-name: rotateBall;
-    animation-duration: 25s;
-    animation-iteration-count: infinite;
-    animation-timing-function: linear;
-    border-radius: 50%;
-    height: 100%;
-    position: absolute;
-    transform-style: preserve-3d;
-    width: 100%;
-  }
-
-  .ball .line::before,
-  .ball .line::after {
-    border: 2px solid #333333;
-    border-radius: 50%;
-    content: "";
-    height: 99%;
-    position: absolute;
-    width: 99%;
-  }
-
-  .ball .line::before {
-    transform: rotate3d(0, 0, 0, 0);
-  }
-
-  .ball .line::after {
-    transform: rotate3d(1, 0, 0, 90deg);
-  }
-
-  .ball .line--two::before {
-    transform: rotate3d(0, 0, 0, 2deg);
-  }
-
-  .ball .line--two::after {
-    transform: rotate3d(1, 0, 0, 88deg);
-  }
-
-  .ball .oval::before,
-  .ball .oval::after {
-    border-top: 4px solid #333333;
-    border-radius: 50%;
-    content: "";
-    height: 99%;
-    position: absolute;
-    width: 99%;
-  }
-
-  .ball .oval::before {
-    transform: rotate3d(1, 0, 0, 45deg) translate3d(0, 0, 6px);
-  }
-
-  .ball .oval::after {
-    transform: rotate3d(1, 0, 0, -45deg) translate3d(0, 0, -6px);
-  }
-
-  .ball .oval--two::before {
-    transform: rotate3d(1, 0, 0, 135deg) translate3d(0, 0, -6px);
-  }
-
-  .ball .oval--two::after {
-    transform: rotate3d(1, 0, 0, -135deg) translate3d(0, 0, 6px);
-  }
-
-  @keyframes bounceShadow {
-    0% {
-      filter: blur(3px);
+      transform: translateY(0);
       opacity: 0.6;
-      transform: translateY(73px) scale(0.5, 0.5);
     }
-    45% {
-      filter: blur(1px);
-      opacity: 0.9;
-      transform: translateY(73px) scale(1, 1);
-    }
-    55% {
-      filter: blur(1px);
-      opacity: 0.9;
-      transform: translateY(73px) scale(1, 1);
-    }
-    100% {
-      filter: blur(3px);
-      opacity: 0.6;
-      transform: translateY(73px) scale(0.5, 0.5);
+
+    50% {
+      transform: translateY(-0.3rem);
+      opacity: 1;
     }
   }
-
-  .shadow {
-    animation-name: bounceShadow;
-    animation-duration: 1.2s;
-    animation-iteration-count: infinite;
-    animation-timing-function: cubic-bezier(0.42, 0, 0.58, 1);
-    background: black;
-    filter: blur(2px);
-    border-radius: 50%;
-    height: 6px;
-    transform: translateY(73px);
-    width: 54px;
-  }`;
-
-export default Loader;
+`;

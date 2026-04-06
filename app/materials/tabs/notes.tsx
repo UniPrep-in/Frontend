@@ -48,9 +48,6 @@ export default function Notes() {
         const query = params.toString();
         const response = await fetch(
           `/api/materials/notes${query ? `?${query}` : ""}`,
-          {
-            cache: "no-store",
-          },
         );
 
         const payload = response.ok
@@ -127,47 +124,52 @@ export default function Notes() {
 
   if (loading) {
     return (
-      <main className="flex items-center justify-center">
-        <Loader />
+      <main className="flex min-h-[42rem] items-center justify-center px-6 py-8">
+        <Loader
+          title="Loading notes"
+          subtitle="Bringing your study notes into view."
+        />
       </main>
     );
   }
 
   return (
-    <main className="px-6 pt-4 pb-24">
+    <main className="min-h-[42rem] overflow-x-hidden px-6 pt-6 pb-24">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <h1 className="text-2xl font-semibold text-black">Notes</h1>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
           <div className="flex items-center gap-2 text-neutral-600">
             <Filter className="h-4 w-4" />
             <span className="text-sm font-medium">Filter by:</span>
           </div>
 
           {availableStreams.length > 1 ? (
-            <div className="relative dropdown-container">
+            <div className="relative min-w-0 max-w-full dropdown-container">
               <button
                 type="button"
                 onClick={() => {
                   setIsStreamOpen((current) => !current);
                   setIsSubjectOpen(false);
                 }}
-                className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-all ${
+                className={`flex max-w-full items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-all ${
                   selectedStream !== "All"
                     ? "bg-blue-300 text-black border"
                     : "bg-neutral-100 text-neutral-700 border border-neutral-200 hover:bg-neutral-200"
                 }`}
               >
-                {selectedStream === "All" ? "Stream" : selectedStream}
+                <span className="max-w-[10rem] truncate">
+                  {selectedStream === "All" ? "Stream" : selectedStream}
+                </span>
                 <ChevronDown
-                  className={`h-4 w-4 transition-transform ${
+                  className={`h-4 w-4 shrink-0 transition-transform ${
                     isStreamOpen ? "rotate-180" : ""
                   }`}
                 />
               </button>
 
               {isStreamOpen ? (
-                <div className="absolute left-0 top-full z-50 mt-2 max-h-60 w-48 overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-lg">
+                <div className="absolute left-0 top-full z-50 mt-2 max-h-60 w-48 max-w-[calc(100vw-3rem)] overflow-x-hidden overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-lg">
                   {availableStreams.map((stream) => (
                     <button
                       key={stream}
@@ -188,29 +190,31 @@ export default function Notes() {
           ) : null}
 
           {availableSubjects.length > 1 ? (
-            <div className="relative dropdown-container">
+            <div className="relative min-w-0 max-w-full dropdown-container">
               <button
                 type="button"
                 onClick={() => {
                   setIsSubjectOpen((current) => !current);
                   setIsStreamOpen(false);
                 }}
-                className={`flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-all ${
+                className={`flex max-w-full items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-all ${
                   selectedSubject !== "All"
                     ? "bg-emerald-300 text-black border"
                     : "bg-neutral-100 text-neutral-700 border border-neutral-200 hover:bg-neutral-200"
                 }`}
               >
-                {selectedSubject === "All" ? "Subject" : selectedSubject}
+                <span className="max-w-[11rem] truncate">
+                  {selectedSubject === "All" ? "Subject" : selectedSubject}
+                </span>
                 <ChevronDown
-                  className={`h-4 w-4 transition-transform ${
+                  className={`h-4 w-4 shrink-0 transition-transform ${
                     isSubjectOpen ? "rotate-180" : ""
                   }`}
                 />
               </button>
 
               {isSubjectOpen ? (
-                <div className="absolute left-0 top-full z-50 mt-2 max-h-64 w-56 overflow-y-auto rounded-xl border border-neutral-200 bg-white py-1 shadow-lg">
+                <div className="absolute left-0 top-full z-50 mt-2 max-h-64 w-56 max-w-[calc(100vw-3rem)] overflow-x-hidden overflow-y-auto rounded-xl border border-neutral-200 bg-white py-1 shadow-lg">
                   {availableSubjects.map((subject) => (
                     <button
                       key={subject}

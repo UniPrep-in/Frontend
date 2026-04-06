@@ -44,6 +44,8 @@ export type MockAccessState = {
   isPurchased: boolean;
   hasFreeMockAvailable: boolean;
   activeAttemptId: string | null;
+  attemptCount: number;
+  hasReachedAttemptLimit: boolean;
   canAccess: boolean;
 };
 
@@ -122,6 +124,67 @@ export async function hasConsumedFreeMock(
   return {
     data: Boolean(data),
     error,
+  };
+}
+
+export async function getAttemptCountForTest(
+  supabase: SupabaseClient,
+  userId: string,
+  testId: string,
+) {
+  const { count, error } = await supabase
+    .from("test_attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("test_id", testId);
+
+  return {
+    data: count ?? 0,
+    error,
+  };
+}
+
+export async function getAttemptCountsByTest(
+  supabase: SupabaseClient,
+  userId: string,
+  testIds: string[],
+) {
+  if (testIds.length === 0) {
+    return {
+      data: new Map<string, number>(),
+      error: null,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("test_attempts")
+    .select("test_id")
+    .eq("user_id", userId)
+    .in("test_id", testIds);
+
+  if (error) {
+    return {
+      data: new Map<string, number>(),
+      error,
+    };
+  }
+
+  const attemptCounts = new Map<string, number>();
+
+  (((data ?? []) as Array<{ test_id: string | null }>)).forEach((attempt) => {
+    if (!attempt.test_id) {
+      return;
+    }
+
+    attemptCounts.set(
+      attempt.test_id,
+      (attemptCounts.get(attempt.test_id) ?? 0) + 1,
+    );
+  });
+
+  return {
+    data: attemptCounts,
+    error: null,
   };
 }
 
@@ -309,13 +372,20 @@ export async function getMockAccessState(
   userId: string,
   testId: string,
 ): Promise<{ data: MockAccessState | null; error: { message: string } | null }> {
-  const [subscriptionResult, purchaseResult, freeMockResult, openAttemptResult] =
+  const [
+    subscriptionResult,
+    purchaseResult,
+    freeMockResult,
+    openAttemptResult,
+    attemptCountResult,
+  ] =
     await Promise.all([
-    getLatestVerifiedSubscriptionAccess(supabase, userId),
-    hasVerifiedMockPurchase(supabase, userId, testId),
-    hasConsumedFreeMock(supabase, userId),
-    getLatestOpenAttemptForTest(supabase, userId, testId),
-  ]);
+      getLatestVerifiedSubscriptionAccess(supabase, userId),
+      hasVerifiedMockPurchase(supabase, userId, testId),
+      hasConsumedFreeMock(supabase, userId),
+      getLatestOpenAttemptForTest(supabase, userId, testId),
+      getAttemptCountForTest(supabase, userId, testId),
+    ]);
 
   if (subscriptionResult.error) {
     return {
@@ -345,10 +415,21 @@ export async function getMockAccessState(
     };
   }
 
+  if (attemptCountResult.error) {
+    return {
+      data: null,
+      error: { message: attemptCountResult.error.message },
+    };
+  }
+
   const hasSubscriptionAccess = Boolean(subscriptionResult.data);
   const isPurchased = Boolean(purchaseResult.data);
   const hasFreeMockAvailable = !hasSubscriptionAccess && !freeMockResult.data;
   const activeAttemptId = openAttemptResult.data?.id ?? null;
+  const attemptCount = attemptCountResult.data;
+  const hasReachedAttemptLimit = attemptCount >= 2 && !activeAttemptId;
+  const canAttemptThisMock = Boolean(activeAttemptId) || attemptCount < 2;
+  const hasFreeAccessToThisMock = hasFreeMockAvailable || attemptCount > 0;
 
   return {
     data: {
@@ -356,11 +437,11 @@ export async function getMockAccessState(
       isPurchased,
       hasFreeMockAvailable,
       activeAttemptId,
+      attemptCount,
+      hasReachedAttemptLimit,
       canAccess:
-        hasSubscriptionAccess ||
-        isPurchased ||
-        hasFreeMockAvailable ||
-        Boolean(activeAttemptId),
+        (hasSubscriptionAccess || isPurchased || hasFreeAccessToThisMock) &&
+        canAttemptThisMock,
     },
     error: null,
   };

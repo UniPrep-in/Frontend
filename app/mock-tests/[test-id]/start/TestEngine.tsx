@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import SubmitModal from "./components/SummaryPanel";
+import Loader from "@/app/components/ui/loader";
 
 interface Option {
   id: string;
@@ -231,10 +232,11 @@ export default function TestEngine({
     <div className="flex flex-col md:flex-row bg-gray-50 min-h-screen">
       {/* Submit full-screen loader */}
       {submitting && (
-          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/70 backdrop-blur-[2px]">
-          <div className="w-12 h-12 border-4 border-gray-200 border-t-gray-800 rounded-full animate-spin" />
-          <p className="mt-4 text-gray-600 font-medium">Submitting your test...</p>
-          <p className="text-sm text-gray-500">Please wait</p>
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 px-4 backdrop-blur-[2px]">
+          <Loader
+            title="Submitting your test"
+            subtitle="Saving your answers and score."
+          />
         </div>
       )}
 

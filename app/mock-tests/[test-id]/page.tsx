@@ -2,7 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import ProceedLoader from "./ProceedLoader";
 import MockTestInstructionsContent, {
   PROCEED_CONFIRMATION_TEXT,
 } from "./MockTestInstructionsContent";
@@ -129,7 +128,6 @@ export default async function TestInstructionsPage({
           action={startTest}
           className="fixed bottom-0 items-center justify-center left-0 w-full bg-white border-t border-neutral-300 px-4 sm:py-4 py-2 flex flex-col sm:gap-4 gap-2"
         >
-          <ProceedLoader />
           <label className="flex items-center sm:py-2 sm:gap-4 gap-2 sm:text-[16px] text-xs max-w-6xl text-black">
             <input
               id="confirmStart"

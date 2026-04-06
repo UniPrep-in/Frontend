@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import {
-  getFlashcardsSearchPage,
+  getCachedFlashcardsSearchPage,
   getUserFlashcards,
   type Flashcard,
 } from "@/lib/materials-data";
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
 
     const pageParam = Number(searchParams.get("page") ?? "0");
     const page = Number.isInteger(pageParam) && pageParam >= 0 ? pageParam : 0;
-    const data = await getFlashcardsSearchPage(supabase, page);
+    const data = await getCachedFlashcardsSearchPage(page);
 
     return NextResponse.json(data);
   } catch (error) {

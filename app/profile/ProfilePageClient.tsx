@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import Navbar from "../components/ui/Navbar";
 import { createClient } from "@/lib/supabase/client";
 import { IoSettings } from "react-icons/io5";
 import TodoList from "./components/todo";
@@ -126,7 +125,6 @@ export default function ProfilePageClient({
 
   return (
     <main className="min-h-screen bg-neutral-100 flex justify-center items-start md:items-center px-3 sm:px-4 py-6 sm:py-8 pt-20 sm:pt-24">
-      <Navbar />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 w-full max-w-6xl">
         <div className="shadow-xl flex flex-col px-5 py-6 sm:px-6 md:px-8 col-span-1 w-full gap-4 items-center justify-center bg-linear-to-r from-purple-200 to-pink-200 via-white rounded-2xl text-center">
           <span className="text-6xl">👋</span>

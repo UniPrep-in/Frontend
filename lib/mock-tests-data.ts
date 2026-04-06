@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  getAttemptCountsByTest,
   hasConsumedFreeMock,
   getLatestOpenAttemptIdsByTest,
   getSingleMockPricePaise,
@@ -29,6 +30,8 @@ export type MockTest = {
   hasSubscriptionAccess: boolean;
   hasFreeMockAvailable: boolean;
   activeAttemptId: string | null;
+  attemptCount: number;
+  hasReachedAttemptLimit: boolean;
   canAccess: boolean;
   singleMockPricePaise: number;
 };
@@ -38,6 +41,18 @@ export type MockTestsPageResponse = {
   totalPages: number;
   currentPage: number;
   totalCount: number;
+};
+
+export type ResolvedMockTestsFilters = {
+  stream: MainStreamLabel;
+  category: string;
+  page: number;
+};
+
+export type MockTestsBootstrapResponse = MockTestsPageResponse & {
+  access: SubscriptionAccess;
+  subjectOptionsByStream: SubjectOptionsByStream;
+  resolvedFilters: ResolvedMockTestsFilters;
 };
 
 export type SubjectOptionsByStream = Record<MainStreamLabel, string[]>;
@@ -89,6 +104,67 @@ function getEmptySubjectOptionsByStream(): SubjectOptionsByStream {
 
 function normalizePage(page: number) {
   return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
+export function parseMockTestsPage(value?: string | null) {
+  const page = Number(value ?? "1");
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
+export function normalizeMockTestsInitialCategory(
+  value: string | undefined | null,
+  access: SubscriptionAccess,
+  subjects: string[],
+) {
+  if (value === "all" || value === "english" || value === "gat") {
+    if (access.allowedCategories.includes(value)) {
+      return value;
+    }
+  }
+
+  if (value && subjects.includes(value)) {
+    return value;
+  }
+
+  return "all";
+}
+
+export function normalizeMockTestsStreamLabel(
+  value: string | undefined | null,
+  access: SubscriptionAccess,
+): MainStreamLabel {
+  const normalized = value?.trim().toLowerCase();
+
+  const label =
+    normalized === "science"
+      ? "Science"
+      : normalized === "commerce"
+        ? "Commerce"
+        : normalized === "arts" ||
+            normalized === "art" ||
+            normalized === "humanities"
+          ? "Arts"
+          : null;
+
+  if (label && access.selectableMainStreams.includes(label)) {
+    return label;
+  }
+
+  return access.baseStreamLabel;
+}
+
+export function getMockTestsRequestParams(category: string, subjects: string[]) {
+  if (subjects.includes(category)) {
+    return {
+      category: "main" as const,
+      subject: category,
+    };
+  }
+
+  return {
+    category: category as ContentCategory,
+    subject: "",
+  };
 }
 
 function dedupeTests(tests: TestRow[]) {
@@ -220,6 +296,8 @@ function mapTestForDisplay(
   | "hasSubscriptionAccess"
   | "hasFreeMockAvailable"
   | "activeAttemptId"
+  | "attemptCount"
+  | "hasReachedAttemptLimit"
   | "canAccess"
   | "singleMockPricePaise"
 > {
@@ -379,6 +457,7 @@ export async function getMockTestsPageData({
     { data: purchasedTestIds, error: purchasesError },
     freeMockResult,
     { data: openAttemptIdsByTest, error: openAttemptsError },
+    { data: attemptCountsByTest, error: attemptCountsError },
     priceResult,
   ] =
     await Promise.all([
@@ -399,6 +478,13 @@ export async function getMockTestsPageData({
             paginatedTests.map((test) => test.id),
           )
         : Promise.resolve({ data: new Map<string, string>(), error: null }),
+      userId
+        ? getAttemptCountsByTest(
+            adminSupabase,
+            userId,
+            paginatedTests.map((test) => test.id),
+          )
+        : Promise.resolve({ data: new Map<string, number>(), error: null }),
       getSingleMockPricePaise(adminSupabase),
     ]);
 
@@ -414,6 +500,10 @@ export async function getMockTestsPageData({
     throw openAttemptsError;
   }
 
+  if (attemptCountsError) {
+    throw attemptCountsError;
+  }
+
   if (priceResult.error || !priceResult.data) {
     throw new Error(priceResult.error?.message || "Single mock price is not configured");
   }
@@ -424,6 +514,10 @@ export async function getMockTestsPageData({
     tests: paginatedTests.map((test) => {
       const isPurchased = purchasedTestIds.has(test.id);
       const activeAttemptId = openAttemptIdsByTest.get(test.id) ?? null;
+      const attemptCount = attemptCountsByTest.get(test.id) ?? 0;
+      const hasReachedAttemptLimit = attemptCount >= 2 && !activeAttemptId;
+      const canAttemptThisMock = Boolean(activeAttemptId) || attemptCount < 2;
+      const hasFreeAccessToThisMock = hasFreeMockAvailable || attemptCount > 0;
 
       return {
         ...mapTestForDisplay(test, access.baseStreamLabel),
@@ -431,11 +525,11 @@ export async function getMockTestsPageData({
         hasSubscriptionAccess,
         hasFreeMockAvailable,
         activeAttemptId,
+        attemptCount,
+        hasReachedAttemptLimit,
         canAccess:
-          hasSubscriptionAccess ||
-          isPurchased ||
-          hasFreeMockAvailable ||
-          Boolean(activeAttemptId),
+          (hasSubscriptionAccess || isPurchased || hasFreeAccessToThisMock) &&
+          canAttemptThisMock,
         singleMockPricePaise: priceResult.data,
       };
     }),

@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { FaPlus } from "react-icons/fa";
-import Skeletal from "@/app/components/ui/skeletal";
+import Loader from "@/app/components/ui/loader";
 
 type Todo = {
   id: number;
@@ -103,7 +103,14 @@ export default function TodoList() {
   }
 
   if (loading) {
-    return <Skeletal />;
+    return (
+      <div className="flex min-h-[16rem] items-center justify-center rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 p-4">
+        <Loader
+          title="Loading your tasks"
+          subtitle="Getting your day organized."
+        />
+      </div>
+    );
   }
 
   return (

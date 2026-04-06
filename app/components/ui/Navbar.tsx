@@ -32,6 +32,12 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  useEffect(() => {
+    navlinks.forEach((item) => {
+      router.prefetch(item.link);
+    });
+  }, [router]);
+
   // Close profile menu on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -58,17 +64,17 @@ export default function Navbar() {
 
   return (
     <>
-      <motion.header
-        initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-5xl transition-all duration-500 ${
-          isScrolled
-            ? "bg-white/80 backdrop-blur-xl shadow-lg shadow-black/5"
-            : "bg-white/60 backdrop-blur-md"
-        } rounded-full border border-white/20`}
+      <div
+        className="fixed inset-x-0 top-4 z-50 flex justify-center px-4"
       >
-        <nav className="flex items-center justify-between px-4 py-2.5 md:px-6">
+        <motion.header
+          className={`w-full max-w-5xl rounded-full border border-white/20 transition-all duration-500 ${
+            isScrolled
+              ? "bg-white/80 shadow-lg shadow-black/5 backdrop-blur-xl"
+              : "bg-white/60 backdrop-blur-md"
+          }`}
+        >
+          <nav className="flex items-center justify-between px-4 py-2.5 md:px-6">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
             <span className="block text-slate-900 text-sm md:text-base tracking-tight font-medium">
@@ -82,7 +88,7 @@ export default function Navbar() {
               <Link
                 key={item.link}
                 href={item.link}
-                className="relative px-4 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors duration-200 rounded-full hover:bg-white/60"
+                className="relative rounded-full px-4 py-1.5 text-sm font-medium text-slate-600 transition-colors duration-200 hover:bg-white/60 hover:text-slate-900"
               >
                 {item.title}
               </Link>
@@ -92,20 +98,22 @@ export default function Navbar() {
           {/* User Actions */}
           <div className="flex items-center gap-2">
             {isAuthLoading ? (
-              <div className="h-9 w-24 rounded-full bg-slate-100 animate-pulse" />
+              <div className="flex h-9 w-[148px] items-center justify-center rounded-full bg-slate-100 px-3">
+                <div className="h-2.5 w-14 animate-pulse rounded-full bg-slate-200" />
+              </div>
             ) : user ? (
               <div ref={profileMenuRef} className="relative">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors duration-200"
+                  className="flex w-[148px] items-center justify-between rounded-full bg-slate-100 py-1 pl-1 pr-3 transition-colors duration-200 hover:bg-slate-200"
                 >
                   {/* User Icon instead of Avatar */}
-                  <div className="h-7 w-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-sm">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm">
                     <User className="h-4 w-4" />
                   </div>
-                  <span className="hidden sm:block text-sm font-medium text-slate-700 max-w-[100px] truncate">
+                  <span className="hidden flex-1 px-2 text-sm font-medium text-slate-700 sm:block truncate">
                     {displayName}
                   </span>
                   <ChevronDown
@@ -194,8 +202,9 @@ export default function Navbar() {
               )}
             </button>
           </div>
-        </nav>
-      </motion.header>
+          </nav>
+        </motion.header>
+      </div>
 
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
@@ -221,7 +230,7 @@ export default function Navbar() {
                     key={item.link}
                     href={item.link}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center px-4 py-3 text-base font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-2xl transition-colors duration-200"
+                    className="flex items-center rounded-2xl px-4 py-3 text-base font-medium text-slate-700 transition-colors duration-200 hover:bg-slate-50 hover:text-slate-900"
                   >
                     {item.title}
                   </Link>

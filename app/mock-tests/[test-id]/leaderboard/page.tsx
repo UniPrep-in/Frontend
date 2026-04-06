@@ -2,8 +2,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useParams } from "next/navigation";
-import Navbar from "@/app/components/ui/Navbar";
-import Footer from "@/app/components/Footer";
+import Loader from "@/app/components/ui/loader";
 
 const supabase = createClient();
 
@@ -61,10 +60,6 @@ export default function LeaderboardPage() {
 
   return (
     <main className="min-h-screen bg-neutral-100 text-black">
-        <div>
-            <Navbar />
-        </div>
-
         <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
             {/* Header */}
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -103,7 +98,12 @@ export default function LeaderboardPage() {
         </div>
 
         {loading ? (
-          <div className="p-6 text-center text bg-white">Loading leaderboard...</div>
+          <div className="flex min-h-[18rem] items-center justify-center bg-white p-6">
+            <Loader
+              title="Loading leaderboard"
+              subtitle="Calculating the latest ranks."
+            />
+          </div>
         ) : data.length === 0 ? (
           <div className="p-6 text-center text-gray-500 bg-white">
             No attempts yet. Be the first to take this test
@@ -149,10 +149,6 @@ export default function LeaderboardPage() {
         )}
       </div>
         </div>
-
-      <div>
-        <Footer />
-      </div>
     </main>
   );
 }

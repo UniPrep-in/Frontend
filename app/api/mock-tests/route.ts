@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getMockTestsPageData } from "@/lib/mock-tests-data";
+import {
+  getMockTestsPageData,
+  getMockTestsRequestParams,
+  getSubjectOptionsByStream,
+  normalizeMockTestsInitialCategory,
+  normalizeMockTestsStreamLabel,
+  parseMockTestsPage,
+  type MockTestsBootstrapResponse,
+} from "@/lib/mock-tests-data";
 import {
   createBrowseAccess,
   getLatestVerifiedSubscriptionAccess,
-  normalizeContentCategory,
 } from "@/lib/subscriptions";
 
 export async function GET(req: Request) {
@@ -30,20 +37,36 @@ export async function GET(req: Request) {
     }
 
     const access = subscriptionAccess ?? createBrowseAccess(searchParams.get("stream"));
-    const category = normalizeContentCategory(searchParams.get("category"));
-    const requestedSubject = searchParams.get("subject")?.trim() || "";
-    const subject = category === "main" ? requestedSubject : "";
-    const page = Number(searchParams.get("page") || "1");
-    const currentPage = Number.isInteger(page) && page > 0 ? page : 1;
-    const data = await getMockTestsPageData({
+    const subjectOptionsByStream = await getSubjectOptionsByStream();
+    const stream = normalizeMockTestsStreamLabel(searchParams.get("stream"), access);
+    const availableSubjects = subjectOptionsByStream[stream] ?? [];
+    const category = normalizeMockTestsInitialCategory(
+      searchParams.get("category"),
+      access,
+      availableSubjects,
+    );
+    const requestParams = getMockTestsRequestParams(category, availableSubjects);
+    const currentPage = parseMockTestsPage(searchParams.get("page"));
+    const pageData = await getMockTestsPageData({
       access,
       userId: user?.id ?? null,
-      category,
-      subject,
+      category: requestParams.category,
+      subject: requestParams.subject,
       page: currentPage,
     });
 
-    return NextResponse.json(data);
+    const response: MockTestsBootstrapResponse = {
+      ...pageData,
+      access,
+      subjectOptionsByStream,
+      resolvedFilters: {
+        stream,
+        category,
+        page: currentPage,
+      },
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Mock tests route failed", error);
     return NextResponse.json(
