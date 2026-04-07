@@ -1,6 +1,13 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import useSWR from "swr";
 import { createClient } from "@/lib/supabase/client";
@@ -47,19 +54,42 @@ export function AuthProvider({
   const [user, setUser] = useState<User | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const activeUserIdRef = useRef<string | null>(null);
+  const hasResolvedInitialAuthRef = useRef(false);
 
   const {
     data: profile,
     mutate: mutateProfile,
-    isLoading: isProfileLoading,
   } = useSWR(user ? ["auth-profile", user.id] : null, getAuthProfile, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
   });
 
-  const isAuthLoading = useMemo(
-    () => isBootstrapping || (Boolean(user) && isProfileLoading && typeof profile === "undefined"),
-    [isBootstrapping, isProfileLoading, profile, user],
+  const isAuthLoading = isBootstrapping;
+
+  const applySession = useCallback(
+    (session: Session | null) => {
+      const currentUser = session?.user ?? null;
+      const nextUserId = currentUser?.id ?? null;
+      const previousUserId = activeUserIdRef.current;
+
+      activeUserIdRef.current = nextUserId;
+      setUser(currentUser);
+
+      if (previousUserId !== nextUserId) {
+        if (!currentUser) {
+          void mutateProfile(null, false);
+        } else {
+          void mutateProfile();
+        }
+      }
+
+      if (!hasResolvedInitialAuthRef.current) {
+        hasResolvedInitialAuthRef.current = true;
+      }
+
+      setIsBootstrapping(false);
+    },
+    [mutateProfile],
   );
 
   const refreshProfile = async () => {
@@ -82,10 +112,7 @@ export function AuthProvider({
         return;
       }
 
-      const currentUser = session?.user ?? null;
-      activeUserIdRef.current = currentUser?.id ?? null;
-      setUser(currentUser);
-      setIsBootstrapping(false);
+      applySession(session);
     };
 
     void bootstrapAuth();
@@ -94,35 +121,38 @@ export function AuthProvider({
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, session: Session | null) => {
-        if (!isMounted || event === "INITIAL_SESSION") {
+        if (!isMounted) {
           return;
         }
 
-        const currentUser = session?.user ?? null;
-        const nextUserId = currentUser?.id ?? null;
-        const previousUserId = activeUserIdRef.current;
-
-        setUser(currentUser);
-        setIsBootstrapping(false);
-
-        if (!currentUser) {
-          activeUserIdRef.current = null;
-          return;
-        }
-
-        if (nextUserId === previousUserId) {
-          return;
-        }
-
-        activeUserIdRef.current = nextUserId;
+        applySession(session);
       },
     );
 
+    const handleVisibilityChange = async () => {
+      if (!isMounted || document.visibilityState !== "visible") {
+        return;
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!isMounted) {
+        return;
+      }
+
+      applySession(session);
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       isMounted = false;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [applySession]);
 
   useEffect(() => {
     activeUserIdRef.current = user?.id ?? null;

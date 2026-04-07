@@ -3,10 +3,11 @@
 import Image from "next/image";
 import Loader from "@/app/components/ui/loader";
 import ComingSoon from "@/app/components/ui/comingSoon";
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Filter, X } from "lucide-react";
-import type { NoteSummary, NotesResponse } from "@/lib/materials-data";
+import useSWR from "swr";
+import type { NotesResponse } from "@/lib/materials-data";
 
 const EMPTY_NOTES_RESPONSE: NotesResponse = {
   notes: [],
@@ -15,79 +16,70 @@ const EMPTY_NOTES_RESPONSE: NotesResponse = {
   availableSubjects: ["All"],
 };
 
+function NotesLoaderState() {
+  return (
+    <main className="min-h-[42rem] overflow-x-hidden px-6 pt-6 pb-24">
+      <div className="flex min-h-[30rem] items-center justify-center">
+        <Loader
+          title="Loading notes"
+          subtitle="Bringing your study notes into view."
+        />
+      </div>
+    </main>
+  );
+}
+
 export default function Notes() {
-  const [notes, setNotes] = useState<NoteSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [selectedStream, setSelectedStream] = useState<string>("All");
   const [selectedSubject, setSelectedSubject] = useState<string>("All");
-  const [availableStreams, setAvailableStreams] = useState<string[]>(["All"]);
-  const [availableSubjects, setAvailableSubjects] = useState<string[]>(["All"]);
-  const [totalCount, setTotalCount] = useState(0);
   const [isStreamOpen, setIsStreamOpen] = useState(false);
   const [isSubjectOpen, setIsSubjectOpen] = useState(false);
 
   const router = useRouter();
 
-  const fetchNotes = useCallback(
-    async (stream: string, subject: string) => {
-      setLoading(true);
-      setError("");
+  const fetchNotes = useCallback(async ([, stream, subject]: readonly [
+    string,
+    string,
+    string,
+  ]) => {
+    const params = new URLSearchParams();
 
-      try {
-        const params = new URLSearchParams();
+    if (stream !== "All") {
+      params.set("stream", stream);
+    }
 
-        if (stream !== "All") {
-          params.set("stream", stream);
-        }
+    if (subject !== "All") {
+      params.set("subject", subject);
+    }
 
-        if (subject !== "All") {
-          params.set("subject", subject);
-        }
+    const query = params.toString();
+    const response = await fetch(`/api/materials/notes${query ? `?${query}` : ""}`);
 
-        const query = params.toString();
-        const response = await fetch(
-          `/api/materials/notes${query ? `?${query}` : ""}`,
-        );
-
-        const payload = response.ok
-          ? ((await response.json()) as NotesResponse)
-          : EMPTY_NOTES_RESPONSE;
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            setError("Please sign in to view notes.");
-          } else {
-            setError("We could not load notes right now.");
-          }
-          setNotes([]);
-          setAvailableStreams(payload.availableStreams);
-          setAvailableSubjects(payload.availableSubjects);
-          setTotalCount(0);
-          return;
-        }
-
-        setNotes(payload.notes);
-        setAvailableStreams(payload.availableStreams);
-        setAvailableSubjects(payload.availableSubjects);
-        setTotalCount(payload.totalCount);
-      } catch (fetchError) {
-        console.error("Fetch notes error:", fetchError);
-        setError("We could not load notes right now.");
-        setNotes([]);
-        setAvailableStreams(["All"]);
-        setAvailableSubjects(["All"]);
-        setTotalCount(0);
-      } finally {
-        setLoading(false);
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("Please sign in to view notes.");
       }
-    },
-    [],
-  );
 
-  useEffect(() => {
-    void fetchNotes(selectedStream, selectedSubject);
-  }, [fetchNotes, selectedStream, selectedSubject]);
+      throw new Error("We could not load notes right now.");
+    }
+
+    return (await response.json()) as NotesResponse;
+  }, []);
+
+  const {
+    data,
+    error,
+    isLoading,
+  } = useSWR(
+    ["materials-notes", selectedStream, selectedSubject] as const,
+    fetchNotes,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      keepPreviousData: true,
+      fallbackData: EMPTY_NOTES_RESPONSE,
+    },
+  );
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -121,16 +113,15 @@ export default function Notes() {
 
   const hasActiveFilters =
     selectedStream !== "All" || selectedSubject !== "All";
+  const notes = data?.notes ?? [];
+  const availableStreams = data?.availableStreams ?? ["All"];
+  const availableSubjects = data?.availableSubjects ?? ["All"];
+  const totalCount = data?.totalCount ?? 0;
+  const errorMessage = error instanceof Error ? error.message : "";
+  const shouldShowInitialLoader = isLoading && notes.length === 0 && !errorMessage;
 
-  if (loading) {
-    return (
-      <main className="flex min-h-[42rem] items-center justify-center px-6 py-8">
-        <Loader
-          title="Loading notes"
-          subtitle="Bringing your study notes into view."
-        />
-      </main>
-    );
+  if (shouldShowInitialLoader) {
+    return <NotesLoaderState />;
   }
 
   return (
@@ -251,13 +242,13 @@ export default function Notes() {
         Showing {notes.length} {notes.length === 1 ? "note" : "notes"}
       </div>
 
-      {error ? (
+      {errorMessage ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-6 py-10 text-center text-rose-700">
-          {error}
+          {errorMessage}
         </div>
       ) : null}
 
-      {!error && notes.length === 0 ? (
+      {!errorMessage && notes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12">
           {totalCount === 0 && !hasActiveFilters ? (
             <div className="text-center">
@@ -281,7 +272,7 @@ export default function Notes() {
         </div>
       ) : null}
 
-      {!error && notes.length > 0 ? (
+      {!errorMessage && notes.length > 0 ? (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3">
           {notes.map((note) => (
             <div
@@ -345,3 +336,5 @@ export default function Notes() {
     </main>
   );
 }
+
+export { NotesLoaderState };

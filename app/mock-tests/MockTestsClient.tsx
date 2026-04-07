@@ -35,6 +35,8 @@ type MockTestsClientProps = {
     page?: string;
     stream?: string;
   };
+  initialData: MockTestsBootstrapResponse;
+  initialUserId: string | null;
 };
 
 type FilterState = {
@@ -148,10 +150,12 @@ async function fetchMockTests([, stream, category, page]: readonly [
 
 function FilterTab({
   active,
+  disabled = false,
   onClick,
   children,
 }: {
   active: boolean;
+  disabled?: boolean;
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -159,12 +163,13 @@ function FilterTab({
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={active}
       className={`whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-medium transition ${
         active
           ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md"
           : "bg-neutral-200 text-black hover:bg-neutral-300"
-      }`}
+      } disabled:cursor-not-allowed disabled:opacity-60`}
     >
       {children}
     </button>
@@ -201,18 +206,24 @@ function getVerifyErrorMessage(status?: number) {
 
 export default function MockTestsClient({
   initialParams,
+  initialData,
+  initialUserId,
 }: MockTestsClientProps) {
+  const FILTER_SCROLL_OFFSET = 112;
   const router = useRouter();
   const { user, profile, isAuthLoading } = useAuth();
   const { mutate } = useSWRConfig();
-  const [hasHydrated, setHasHydrated] = useState(false);
   const filterSectionRef = useRef<HTMLElement | null>(null);
   const previousPageRef = useRef<number | null>(null);
+  const pendingScrollPageRef = useRef<number | null>(null);
+  const hasHandledInitialAuthSyncRef = useRef(false);
+  const [pendingFilterKey, setPendingFilterKey] = useState<string | null>(null);
   const pathname = "/mock-tests";
+  const initialResolvedFilters = initialData.resolvedFilters;
   const [filters, setFilters] = useState<FilterState>({
-    stream: parseStreamLabel(initialParams.stream),
-    category: initialParams.category || "all",
-    page: parsePage(initialParams.page),
+    stream: initialResolvedFilters?.stream ?? parseStreamLabel(initialParams.stream),
+    category: initialResolvedFilters?.category ?? initialParams.category ?? "all",
+    page: initialResolvedFilters?.page ?? parsePage(initialParams.page),
   });
   const [selectedTest, setSelectedTest] = useState<MockTest | null>(null);
   const [purchasingTestId, setPurchasingTestId] = useState<string | null>(null);
@@ -254,11 +265,14 @@ export default function MockTestsClient({
   useEffect(() => {
     const handlePopState = () => {
       const searchParams = new URLSearchParams(window.location.search);
-      setFilters({
+      const nextState = {
         stream: parseStreamLabel(searchParams.get("stream") ?? undefined),
         category: searchParams.get("category") ?? "all",
         page: parsePage(searchParams.get("page") ?? "1"),
-      });
+      };
+
+      setPendingFilterKey(null);
+      setFilters(nextState);
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -266,14 +280,33 @@ export default function MockTestsClient({
   }, []);
 
   const applyState = (nextState: FilterState) => {
+    const isFilterChanging =
+      nextState.stream !== filters.stream || nextState.category !== filters.category;
+
+    if (nextState.page !== filters.page) {
+      pendingScrollPageRef.current = nextState.page;
+    }
+
+    if (isFilterChanging) {
+      setPendingFilterKey(`${nextState.stream}:${nextState.category}`);
+    }
+
     setFilters(nextState);
     window.history.pushState(null, "", buildUrl(pathname, nextState));
   };
 
   const { data, error, isLoading } = useSWR(swrKey, fetchMockTests, {
+    fallbackData:
+      filters.stream === initialData.resolvedFilters.stream &&
+      filters.category === initialData.resolvedFilters.category &&
+      filters.page === initialData.resolvedFilters.page
+        ? initialData
+        : undefined,
+    revalidateIfStale: false,
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     keepPreviousData: true,
+    dedupingInterval: 15000,
   });
 
   const access = data?.access;
@@ -317,34 +350,97 @@ export default function MockTestsClient({
         : undefined,
     [data],
   );
-  const shouldShowLoadingState = !hasHydrated || isLoading;
+  const shouldShowLoadingState = isLoading && !visibleData;
   const shouldShowErrorState = !shouldShowLoadingState && !visibleData && Boolean(error);
+  const resolvedFilterKey = data
+    ? `${data.resolvedFilters.stream}:${data.resolvedFilters.category}`
+    : null;
+  const currentFilterKey = `${filters.stream}:${filters.category}`;
+  const isAwaitingRequestedFilter =
+    pendingFilterKey !== null && pendingFilterKey === currentFilterKey;
+  const isFilterTransitioning =
+    isAwaitingRequestedFilter ||
+    (Boolean(data) &&
+      isLoading &&
+      (data.resolvedFilters.stream !== filters.stream ||
+        data.resolvedFilters.category !== filters.category));
+  const isPageTransitioning =
+    Boolean(visibleData) &&
+    isLoading &&
+    visibleData.currentPage !== filters.page;
+  const isResultsTransitioning = isFilterTransitioning || isPageTransitioning;
+  const displayedPage = visibleData?.currentPage ?? filters.page;
 
   useEffect(() => {
-    setHasHydrated(true);
-  }, []);
+    if (!pendingFilterKey) {
+      return;
+    }
+
+    if (resolvedFilterKey === pendingFilterKey && !isLoading) {
+      setPendingFilterKey(null);
+    }
+  }, [isLoading, pendingFilterKey, resolvedFilterKey]);
+
+  const scrollToFilters = (behavior: ScrollBehavior) => {
+    const filterTop =
+      (filterSectionRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY;
+
+    window.scrollTo({
+      top: Math.max(filterTop - FILTER_SCROLL_OFFSET, 0),
+      behavior,
+    });
+  };
 
   useEffect(() => {
-    if (!hasHydrated) {
+    if (!visibleData) {
       previousPageRef.current = filters.page;
       return;
     }
 
-    if (previousPageRef.current !== null && previousPageRef.current !== filters.page) {
-      filterSectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
+    const shouldScrollToFilters =
+      pendingScrollPageRef.current === filters.page &&
+      visibleData.currentPage === filters.page &&
+      previousPageRef.current !== null &&
+      previousPageRef.current !== filters.page;
+
+    if (shouldScrollToFilters) {
+      let correctionTimeoutId: number | null = null;
+
+      requestAnimationFrame(() => {
+        scrollToFilters("smooth");
+        correctionTimeoutId = window.setTimeout(() => {
+          scrollToFilters("auto");
+        }, 260);
       });
+
+      pendingScrollPageRef.current = null;
+      previousPageRef.current = filters.page;
+
+      return () => {
+        if (correctionTimeoutId !== null) {
+          window.clearTimeout(correctionTimeoutId);
+        }
+      };
     }
 
     previousPageRef.current = filters.page;
-  }, [filters.page, hasHydrated]);
+  }, [filters.page, visibleData, FILTER_SCROLL_OFFSET]);
 
   useEffect(() => {
+    const currentUserId = user?.id ?? null;
+
+    if (!hasHandledInitialAuthSyncRef.current) {
+      hasHandledInitialAuthSyncRef.current = true;
+
+      if (currentUserId === initialUserId) {
+        return;
+      }
+    }
+
     void mutate(swrKey);
-    // Entitlement state changes with auth identity, so refresh the active page on sign-in/out.
+    // Entitlement state changes with auth identity, so refresh the active page only when identity truly changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mutate, user?.id]);
+  }, [initialUserId, mutate, user?.id]);
 
   useEffect(() => {
     if (!visibleData || filters.page >= visibleData.totalPages) {
@@ -370,8 +466,31 @@ export default function MockTestsClient({
     visibleData,
   ]);
 
+  useEffect(() => {
+    if (!visibleData?.tests.length) {
+      return;
+    }
+
+    visibleData.tests.forEach((test) => {
+      router.prefetch(`/mock-tests/${test.id}`);
+    });
+  }, [router, visibleData]);
+
   const resetFilters = () => {
     applyState({ stream: filters.stream, category: "all", page: 1 });
+  };
+
+  const handlePageChange = (nextPage: number) => {
+    if (!visibleData || isPageTransitioning || nextPage === filters.page) {
+      return;
+    }
+
+    pendingScrollPageRef.current = nextPage;
+    scrollToFilters("smooth");
+    applyState({
+      ...filters,
+      page: nextPage,
+    });
   };
 
   const closePurchaseModal = () => {
@@ -559,18 +678,6 @@ export default function MockTestsClient({
   };
 
   const renderPrimaryAction = (test: MockTest) => {
-    if (test.activeAttemptId) {
-      return (
-        <Link
-          href={`/mock-tests/${test.id}/start?attemptId=${test.activeAttemptId}`}
-          prefetch
-          className="inline-block rounded-xl border border-black bg-amber-300 px-4 py-2 text-black transition hover:bg-amber-400"
-        >
-          Resume Test
-        </Link>
-      );
-    }
-
     if (test.hasReachedAttemptLimit) {
       return (
         <button
@@ -677,6 +784,7 @@ export default function MockTestsClient({
                   <FilterTab
                     key={stream}
                     active={filters.stream === stream}
+                    disabled={isResultsTransitioning}
                     onClick={() =>
                       applyState({
                         stream,
@@ -696,6 +804,7 @@ export default function MockTestsClient({
                 <span className="text-sm font-medium text-black">Subject:</span>
                 <select
                   value={filters.category}
+                  disabled={isResultsTransitioning}
                   onChange={(event) =>
                     applyState({
                       ...filters,
@@ -703,7 +812,7 @@ export default function MockTestsClient({
                       page: 1,
                     })
                   }
-                  className="cursor-pointer rounded-md border border-black bg-blue-300 px-2 py-2 text-xs focus:outline-none sm:text-sm"
+                  className="cursor-pointer rounded-md border border-black bg-blue-300 px-2 py-2 text-xs focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
                 >
                   {allFilterOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -716,7 +825,7 @@ export default function MockTestsClient({
               <button
                 type="button"
                 onClick={resetFilters}
-                disabled={filters.category === "all"}
+                disabled={filters.category === "all" || isResultsTransitioning}
                 className="inline-flex shrink-0 items-center gap-2 rounded-full border border-neutral-200 px-4 py-2 text-xs font-medium text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
               >
                 <RotateCcw className="h-4 w-4" />
@@ -729,9 +838,9 @@ export default function MockTestsClient({
             <div className="mt-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
               {user
                 ? visibleData?.tests.some((test) => test.hasFreeMockAvailable)
-                  ? "Your account can start one mock for free and reattempt that same mock once. After that, a subscription plan is required."
-                  : "Your free mock has already been used. You can reattempt that same mock one more time if available, otherwise buy a subscription plan to continue."
-                : "Sign in to use your one free mock, then upgrade to a subscription plan for full access."}
+                  ? "You can use one free mock on a single subject, with up to 2 attempts on that chosen mock."
+                  : "Your one free mock is locked to a single subject. Other subjects require a subscription plan."
+                : "Sign in to unlock one free mock on a single subject, with up to 2 attempts."}
             </div>
           ) : null}
         </section>
@@ -756,7 +865,14 @@ export default function MockTestsClient({
       ) : null}
 
       {!shouldShowLoadingState && !shouldShowErrorState && visibleData ? (
-        <>
+        <div className="relative">
+          <div
+            className={`transition-all duration-200 ease-out ${
+              isResultsTransitioning
+                ? "pointer-events-none translate-y-1 opacity-70"
+                : "translate-y-0 opacity-100"
+            }`}
+          >
           {visibleData.tests.length > 0 ? (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {visibleData.tests.map((test) => (
@@ -790,7 +906,7 @@ export default function MockTestsClient({
                     ) : null}
                     {test.hasFreeMockAvailable && !test.hasSubscriptionAccess ? (
                       <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
-                        1 Free Mock
+                        Free Mock
                       </span>
                     ) : null}
                     {test.attemptCount >= 1 ? (
@@ -813,22 +929,14 @@ export default function MockTestsClient({
 
                   <div className="mb-0.5 min-h-[1.5rem] text-sm font-medium">
                     {test.hasReachedAttemptLimit ? (
-                      <span className="text-rose-700">You have already used both attempts for this mock</span>
-                    ) : test.activeAttemptId ? (
-                      <span className="text-amber-700">Resume your in-progress attempt</span>
+                      null
                     ) : test.hasSubscriptionAccess ? null : test.isPurchased ? (
                       <span className="text-emerald-700">Purchased access available</span>
-                    ) : test.attemptCount >= 1 ? (
-                      <span className="text-violet-700">You can reattempt this mock one more time</span>
-                    ) : test.hasFreeMockAvailable ? (
-                      <span className="text-amber-700">Use your one free mock on this test</span>
                     ) : ENABLE_SINGLE_MOCK_PURCHASES ? (
                       <span className="text-neutral-800">
                         Entry Fee: Rs. {getDisplayPriceRupees(test.singleMockPricePaise)}
                       </span>
-                    ) : (
-                      <span className="text-neutral-800">Plan required after your free mock</span>
-                    )}
+                    ) : null}
                   </div>
 
                   <div className="mt-auto pt-0">
@@ -848,13 +956,8 @@ export default function MockTestsClient({
               <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-3 shadow-sm">
                 <button
                   type="button"
-                  onClick={() =>
-                    applyState({
-                      ...filters,
-                      page: Math.max(filters.page - 1, 1),
-                    })
-                  }
-                  disabled={filters.page === 1}
+                  onClick={() => handlePageChange(Math.max(filters.page - 1, 1))}
+                  disabled={displayedPage === 1 || isPageTransitioning}
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -867,11 +970,12 @@ export default function MockTestsClient({
                   <button
                     key={pageNumber}
                     type="button"
-                    onClick={() => applyState({ ...filters, page: pageNumber })}
+                    onClick={() => handlePageChange(pageNumber)}
+                    disabled={isPageTransitioning}
                     className={`h-10 min-w-10 rounded-full px-3 text-sm font-semibold transition ${
-                      filters.page === pageNumber
+                      displayedPage === pageNumber
                         ? "border bg-emerald-300 text-black shadow-lg shadow-slate-900/20"
-                        : "border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                        : "border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                     }`}
                   >
                     {pageNumber}
@@ -881,12 +985,11 @@ export default function MockTestsClient({
                 <button
                   type="button"
                   onClick={() =>
-                    applyState({
-                      ...filters,
-                      page: Math.min(filters.page + 1, visibleData.totalPages),
-                    })
+                    handlePageChange(Math.min(filters.page + 1, visibleData.totalPages))
                   }
-                  disabled={filters.page === visibleData.totalPages}
+                  disabled={
+                    displayedPage === visibleData.totalPages || isPageTransitioning
+                  }
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -894,7 +997,12 @@ export default function MockTestsClient({
               </div>
             </div>
           ) : null}
-        </>
+          </div>
+
+          {isResultsTransitioning ? (
+            <div className="pointer-events-none fixed inset-0 z-40 bg-white/35" />
+          ) : null}
+        </div>
       ) : null}
 
       {ENABLE_SINGLE_MOCK_PURCHASES && selectedTest ? (

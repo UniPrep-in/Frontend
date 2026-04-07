@@ -3,24 +3,11 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import Loader from "@/app/components/ui/loader";
+import FlashCards from "./tabs/flashCards";
+import { NotesLoaderState } from "./tabs/notes";
 
 const Notes = dynamic(() => import("./tabs/notes"), {
-  loading: () => (
-    <div className="flex min-h-[18rem] items-center justify-center rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 p-6 shadow-sm">
-      <Loader title="Loading notes" subtitle="Bringing your study notes into view." />
-    </div>
-  ),
-});
-
-const FlashCards = dynamic(() => import("./tabs/flashCards"), {
-  loading: () => (
-    <div className="flex min-h-[18rem] items-center justify-center rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 p-6 shadow-sm">
-      <Loader
-        title="Loading flashcards"
-        subtitle="Shuffling your cards into place."
-      />
-    </div>
-  ),
+  loading: () => <NotesLoaderState />,
 });
 
 const Pyq = dynamic(() => import("./tabs/pyq"), {

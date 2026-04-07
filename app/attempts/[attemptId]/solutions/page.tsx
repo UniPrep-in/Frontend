@@ -1,3 +1,4 @@
+import SolutionsAccessGate from "../components/SolutionsAccessGate";
 import SolutionsReview from "../components/SolutionsReview";
 import { getAttemptReviewData } from "../review-data";
 
@@ -12,11 +13,15 @@ export default async function SolutionsPage({ params }: Props) {
   return (
     <main className="min-h-screen bg-neutral-100">
       <div className="mx-auto max-w-7xl px-4 py-10">
-        <SolutionsReview
+        <SolutionsAccessGate
           attemptId={reviewData.attemptId}
-          answers={reviewData.solutionAnswers}
-          testTitle={reviewData.testTitle}
-        />
+        >
+          <SolutionsReview
+            attemptId={reviewData.attemptId}
+            answers={reviewData.solutionAnswers}
+            testTitle={reviewData.testTitle}
+          />
+        </SolutionsAccessGate>
       </div>
     </main>
   );

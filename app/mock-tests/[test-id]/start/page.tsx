@@ -45,6 +45,25 @@ export default async function StartTestPage({
   if (!user) redirect("/auth");
 
   const adminSupabase = createAdminClient();
+  if (attemptId) {
+    const { data: attempt, error: attemptError } = await adminSupabase
+      .from("test_attempts")
+      .select("id")
+      .eq("id", attemptId)
+      .eq("user_id", user.id)
+      .eq("test_id", testId)
+      .maybeSingle();
+
+    if (attemptError) {
+      console.error("Failed to validate test attempt", attemptError);
+      redirect("/mock-tests");
+    }
+
+    if (!attempt) {
+      redirect("/mock-tests");
+    }
+  }
+
   const { data: access, error: accessError } = await getMockAccessState(
     adminSupabase,
     user.id,
@@ -56,56 +75,15 @@ export default async function StartTestPage({
     redirect("/mock-tests");
   }
 
-  if (!access?.canAccess) {
-    redirect("/mock-tests");
-  }
-
-  let resolvedAttemptId = attemptId;
-
-  if (resolvedAttemptId) {
-    const { data: attempt, error: attemptError } = await adminSupabase
-      .from("test_attempts")
-      .select("id")
-      .eq("id", resolvedAttemptId)
-      .eq("user_id", user.id)
-      .eq("test_id", testId)
-      .maybeSingle();
-
-    if (attemptError) {
-      console.error("Failed to validate test attempt", attemptError);
+  if (!attemptId) {
+    if (!access?.canAccess) {
       redirect("/mock-tests");
     }
 
-    if (!attempt) {
-      resolvedAttemptId = null;
-    }
+    redirect(`/mock-tests/${testId}`);
   }
 
-  if (!resolvedAttemptId && access.activeAttemptId) {
-    resolvedAttemptId = access.activeAttemptId;
-  }
-
-  if (!resolvedAttemptId) {
-    const { data: attempt, error: attemptError } = await adminSupabase
-      .from("test_attempts")
-      .insert({
-        user_id: user.id,
-        test_id: testId,
-      })
-      .select("id")
-      .single();
-
-    if (attemptError || !attempt?.id) {
-      console.error("Failed to create test attempt on start page", attemptError);
-      redirect("/mock-tests");
-    }
-
-    resolvedAttemptId = attempt.id;
-  }
-
-  if (!resolvedAttemptId) {
-    redirect("/mock-tests");
-  }
+  const resolvedAttemptId = attemptId;
 
   const [testRes, questionsRes] = await Promise.all([
     adminSupabase

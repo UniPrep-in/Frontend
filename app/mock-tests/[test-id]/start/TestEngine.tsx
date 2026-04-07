@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import SubmitModal from "./components/SummaryPanel";
@@ -63,14 +64,15 @@ export default function TestEngine({
     if (submitting) return;
     setSubmitting(true);
     setSubmitError(null);
+
     try {
-      const finalQ = questions[currentIndex];
+      const finalQuestion = questions[currentIndex];
       const now = Date.now();
       const timeSpent = Math.floor((now - startTime) / 1000);
 
       const finalTime = {
         ...questionTime,
-        [finalQ.id]: (questionTime[finalQ.id] || 0) + timeSpent,
+        [finalQuestion.id]: (questionTime[finalQuestion.id] || 0) + timeSpent,
       };
 
       const res = await fetch("/api/submit-test", {
@@ -85,10 +87,12 @@ export default function TestEngine({
       if (!res.ok) {
         const message = data?.error || "Failed to submit test";
         setSubmitError(message);
+
         if (data?.error === "Test already submitted") {
           router.push(`/attempts/${attemptId}/result`);
           return;
         }
+
         setSubmitting(false);
         return;
       }
@@ -101,7 +105,6 @@ export default function TestEngine({
     }
   }
 
-  /* ---------------- Timer ---------------- */
   useEffect(() => {
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
@@ -110,34 +113,37 @@ export default function TestEngine({
           handleSubmit();
           return 0;
         }
+
         return prev - 1;
       });
     }, 1000);
+
     return () => clearInterval(interval);
   }, []);
 
   function formatTime(seconds: number) {
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
 
-  const pad = (num: number) => num.toString().padStart(2, "0");
+    const pad = (num: number) => num.toString().padStart(2, "0");
 
-  return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
-}
+    return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+  }
 
-  /* ---------------- Prevent Exit ---------------- */
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
+
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, []);
 
   useEffect(() => {
     history.pushState(null, "", location.href);
+
     const handlePopState = () => {
       window.removeEventListener("popstate", handlePopState);
       router.replace("/mock-tests");
@@ -149,24 +155,24 @@ export default function TestEngine({
 
   useEffect(() => {
     const timeout = setTimeout(() => {
-      localStorage.setItem(
-        `analytics-${attemptId}`,
-        JSON.stringify(questionTime)
-      );
+      localStorage.setItem(`analytics-${attemptId}`, JSON.stringify(questionTime));
     }, 500);
 
     return () => clearTimeout(timeout);
-  }, [questionTime]);
+  }, [attemptId, questionTime]);
 
-
-  /* ---------------- Answer Handling ---------------- */
   async function selectOption(optionId: string) {
     setAnswers((prev) => ({ ...prev, [currentQuestion.id]: optionId }));
+
     try {
       fetch("/api/save-answer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ attemptId, questionId: currentQuestion.id, optionId }),
+        body: JSON.stringify({
+          attemptId,
+          questionId: currentQuestion.id,
+          optionId,
+        }),
       });
     } catch (error) {
       console.error("Autosave failed:", error);
@@ -175,26 +181,23 @@ export default function TestEngine({
 
   function goToQuestion(index: number) {
     const now = Date.now();
-    const currentQ = questions[currentIndex];
-
+    const activeQuestion = questions[currentIndex];
     const timeSpent = Math.floor((now - startTime) / 1000);
 
     setQuestionTime((prev) => ({
       ...prev,
-      [currentQ.id]: (prev[currentQ.id] || 0) + timeSpent,
+      [activeQuestion.id]: (prev[activeQuestion.id] || 0) + timeSpent,
     }));
 
     setStartTime(now);
-    setVisited((prev) => ({ ...prev, [currentQ.id]: true }));
+    setVisited((prev) => ({ ...prev, [activeQuestion.id]: true }));
     setCurrentIndex(index);
   }
 
   function handleNext() {
-    if (currentIndex < questions.length - 1) goToQuestion(currentIndex + 1);
-  }
-
-  function handlePrevious() {
-    if (currentIndex > 0) goToQuestion(currentIndex - 1);
+    if (currentIndex < questions.length - 1) {
+      goToQuestion(currentIndex + 1);
+    }
   }
 
   function toggleMarkForReview() {
@@ -226,13 +229,15 @@ export default function TestEngine({
     handleNext();
   }
 
-  /* ---------------- UI ---------------- */
+  function openSubmitModal() {
+    if (submitting) return;
+    setShowSubmitModal(true);
+  }
 
   return (
-    <div className="flex flex-col md:flex-row bg-gray-50 min-h-screen">
-      {/* Submit full-screen loader */}
+    <div className="flex min-h-screen flex-col bg-gray-50 md:flex-row">
       {submitting && (
-          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 px-4 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 px-4 backdrop-blur-[2px]">
           <Loader
             title="Submitting your test"
             subtitle="Saving your answers and score."
@@ -240,19 +245,24 @@ export default function TestEngine({
         </div>
       )}
 
-      {/* Main Section — grows naturally, page scrolls */}
-      <div className="flex-1 min-w-0 relative z-10">
-        <div className="bg-white p-4 md:p-12 rounded-xl shadow-sm">
-          <h1 className="text-lg font-semibold border-b pb-2 mb-6">
-            Question {currentIndex + 1} of {questions.length}
+      <div className="relative z-10 min-w-0 flex-1">
+        <div className="min-h-[70vh] rounded-xl bg-white p-4 pb-72 shadow-sm sm:pb-44 md:min-h-screen md:p-12 md:pb-48">
+          <h1 className="mb-6 border-b pb-2 text-lg font-semibold">
+            Question{" "}
+            <span className="inline-flex w-12 justify-center tabular-nums">
+              {currentIndex + 1}
+            </span>
+            {" "}of{" "}
+            <span className="inline-flex w-12 justify-center tabular-nums">
+              {questions.length}
+            </span>
           </h1>
 
-          <div className="border-b pb-4 mb-2">
-            <p className="sm:text-xl text-sm break-words whitespace-pre-wrap">
+          <div className="mb-2 border-b pb-4">
+            <p className="break-words whitespace-pre-wrap text-sm sm:text-xl">
               {currentQuestion.question_text}
             </p>
 
-            {/* URL stored in DB is the full Supabase public URL — use directly */}
             {currentQuestion.question_image && (
               <div className="mt-4 flex justify-center">
                 <img
@@ -269,11 +279,12 @@ export default function TestEngine({
           <div className="space-y-3">
             {currentQuestion.options.map((option) => {
               const checked = answers[currentQuestion.id] === option.id;
+
               return (
                 <label
                   key={option.id}
-                  className={`flex items-center gap-3 sm:p-3 cursor-pointer transition break-words ${
-                    checked ? "bg-white" : "hover:bg-gray-50 rounded-2xl"
+                  className={`flex cursor-pointer items-center gap-3 break-words transition sm:p-3 ${
+                    checked ? "bg-white" : "rounded-2xl hover:bg-gray-50"
                   }`}
                 >
                   <input
@@ -283,55 +294,65 @@ export default function TestEngine({
                     onChange={() => selectOption(option.id)}
                     className="accent-blue-500"
                   />
-                  <span className="sm:text-lg text-sm leading-relaxed">{option.option_text}</span>
+                  <span className="text-sm leading-relaxed sm:text-lg">
+                    {option.option_text}
+                  </span>
                 </label>
               );
             })}
           </div>
+        </div>
 
-          <div className="mt-6 flex flex-col sm:flex-row flex-wrap gap-3">
-            {currentIndex === questions.length - 1 ? (
+        <div className="fixed bottom-0 left-0 z-30 border-t border-neutral-200 bg-white/95 backdrop-blur-sm md:right-[25rem]">
+          <div className="px-4 py-3 md:px-6 md:py-4">
+            {submitError ? (
+              <p className="mb-3 text-center text-sm text-red-600">{submitError}</p>
+            ) : null}
+
+            <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:justify-end">
               <button
-                onClick={() => setShowSubmitModal(true)}
+                onClick={handleSaveAndMarkForReview}
                 disabled={submitting}
-                className="px-6 py-4 bg-emerald-500 text-white sm:text-[16px] text-xs rounded disabled:cursor-not-allowed disabled:bg-emerald-300"
+                className="w-full rounded bg-amber-500 px-4 py-4 text-xs text-white disabled:cursor-not-allowed disabled:bg-amber-300 sm:w-auto sm:text-[16px]"
               >
-                Save & Submit
+                Save & Mark for Review
               </button>
-            ) : (
+
               <button
-                onClick={handleSaveAndNext}
-                className="px-4 py-4 bg-green-500 text-white sm:text-[16px] text-xs rounded"
+                onClick={handleMarkForReviewAndNext}
+                disabled={submitting}
+                className="w-full rounded bg-blue-500 px-4 py-4 text-xs text-white disabled:cursor-not-allowed disabled:bg-blue-300 sm:w-auto sm:text-[16px]"
               >
-                Save & Next
+                Marked for Review & Next
               </button>
-            )}
 
-            <button
-              onClick={clearResponse}
-              className="px-8 py-4 bg-white sm:text-[16px] text-xs border border-black text-black rounded"
-            >
-              Clear
-            </button>
+              <button
+                onClick={clearResponse}
+                disabled={submitting}
+                className="w-full rounded border border-black bg-white px-8 py-4 text-xs text-black disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:text-[16px]"
+              >
+                Clear
+              </button>
 
-            <button
-              onClick={handleSaveAndMarkForReview}
-              className="px-4 py-4 bg-amber-500 sm:text-[16px] text-xs text-white rounded"
-            >
-              Save & Mark for Review
-            </button>
-
-            <button
-              onClick={handleMarkForReviewAndNext}
-              className="px-4 py-4 bg-blue-500 sm:text-[16px] text-xs text-white rounded"
-            >
-              Marked for Review & Next
-            </button>
+              {currentIndex === questions.length - 1 ? (
+                <button
+                  onClick={openSubmitModal}
+                  disabled={submitting}
+                  className="w-full rounded bg-emerald-500 px-6 py-4 text-xs text-white disabled:cursor-not-allowed disabled:bg-emerald-300 sm:w-auto sm:text-[16px]"
+                >
+                  Save & Submit
+                </button>
+              ) : (
+                <button
+                  onClick={handleSaveAndNext}
+                  disabled={submitting}
+                  className="w-full rounded bg-green-500 px-4 py-4 text-xs text-white disabled:cursor-not-allowed disabled:bg-green-300 sm:w-auto sm:text-[16px]"
+                >
+                  Save & Next
+                </button>
+              )}
+            </div>
           </div>
-
-          {submitError && (
-            <p className="mt-4 text-red-600 text-sm text-center">{submitError}</p>
-          )}
         </div>
       </div>
 
@@ -349,95 +370,103 @@ export default function TestEngine({
         notAnswered={questions.length - Object.keys(answers).length}
         marked={Object.values(markedReview).filter(Boolean).length}
         answeredAndMarked={questions.filter(
-          (q) => answers[q.id] && markedReview[q.id]
+          (question) => answers[question.id] && markedReview[question.id]
         ).length}
       />
 
-      {/* Right Palette — sticks to viewport while page scrolls */}
-      <div className="w-full md:w-92 md:sticky md:top-0 md:h-screen flex flex-col justify-between bg-white md:border-l border-b p-4 md:p-6 pb-6 md:pb-12 overflow-y-auto relative z-10 order-first md:order-last">
-  <div className="min-w-0">
-    {/* Header - Stays visible */}
-    <div className="flex justify-between items-center mb-4 md:mb-6">
-      <div className="text-black flex items-center gap-2 font-bold text-base md:text-lg">
-        Remaining Time :
-        <span className="bg-cyan-500 text-white px-4 md:px-6 py-1.5 md:py-2 rounded-full text-sm md:text-base">
-          {formatTime(timeLeft)}
-        </span>
-      </div>
-    </div>
+      <div className="order-first relative z-10 flex w-full flex-col border-b bg-white md:order-last md:h-screen md:w-[25rem] md:sticky md:top-0 md:border-b-0 md:border-l md:overflow-hidden">
+        <div className="border-b border-neutral-200 px-4 py-4 md:px-6 md:py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-base font-bold text-black md:text-lg">
+              Remaining Time :
+              <span className="rounded-full bg-cyan-500 px-4 py-1.5 text-sm text-white md:px-6 md:py-2 md:text-base">
+                {formatTime(timeLeft)}
+              </span>
+            </div>
+          </div>
+        </div>
 
-    {/* Mobile: Horizontal scroll container */}
-    <div className="md:hidden -mx-4 px-4 overflow-x-auto pb-4 scrollbar-hide">
-      <div className="flex gap-2 min-w-max">
-        {questions.map((q, index) => {
-          const isAnswered = !!answers[q.id];
-          const isMarked = !!markedReview[q.id];
-          const isCurrent = index === currentIndex;
+        <div className="min-h-0 flex-1 px-4 py-4 md:overflow-y-auto md:px-6 md:py-6">
+          <div className="-mx-4 overflow-x-auto px-4 pb-4 scrollbar-hide md:hidden">
+            <div className="flex min-w-max gap-2">
+              {questions.map((question, index) => {
+                const isAnswered = !!answers[question.id];
+                const isMarked = !!markedReview[question.id];
+                const isCurrent = index === currentIndex;
 
-          return (
-              <button
-                key={q.id}
-                onClick={() => goToQuestion(index)}
-                className={`flex-shrink-0 w-12 h-12 text-sm font-medium flex items-center justify-center ${
-                  isCurrent
-                    ? "bg-neutral-200 text-black rounded-full ring-2 ring-neutral-400"
-                    : isMarked
-                      ? "bg-purple-500 text-white rounded-full"
-                      : isAnswered
-                        ? "bg-green-500 text-white rounded-t-full"
-                        : visited[q.id]
-                          ? "bg-red-400 text-white rounded-t-full"
-                          : "bg-neutral-50 text-black border rounded-xl border-neutral-300"
-                }`}
-              >
-                <span className="relative flex items-center justify-center w-full h-full">
-                  {index + 1}
-                  {isMarked && isAnswered && (
-                    <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
-                  )}
-                </span>
-              </button>
-            );
-          })}
+                return (
+                  <button
+                    key={question.id}
+                    onClick={() => goToQuestion(index)}
+                    className={`flex h-12 w-12 flex-shrink-0 items-center justify-center text-sm font-medium ${
+                      isCurrent
+                        ? "rounded-full bg-neutral-200 text-black ring-2 ring-neutral-400"
+                        : isMarked
+                          ? "rounded-full bg-purple-500 text-white"
+                          : isAnswered
+                            ? "rounded-t-full bg-green-500 text-white"
+                            : visited[question.id]
+                              ? "rounded-t-full bg-red-400 text-white"
+                              : "rounded-xl border border-neutral-300 bg-neutral-50 text-black"
+                    }`}
+                  >
+                    <span className="relative flex h-full w-full items-center justify-center">
+                      {index + 1}
+                      {isMarked && isAnswered && (
+                        <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="hidden grid-cols-5 gap-2 md:grid">
+            {questions.map((question, index) => {
+              const isAnswered = !!answers[question.id];
+              const isMarked = !!markedReview[question.id];
+              const isCurrent = index === currentIndex;
+
+              return (
+                <button
+                  key={question.id}
+                  onClick={() => goToQuestion(index)}
+                  className={`flex h-14 w-14 items-center justify-center text-sm font-medium ${
+                    isCurrent
+                      ? "rounded-full bg-neutral-200 text-black"
+                      : isMarked
+                        ? "rounded-full bg-purple-500 text-white"
+                        : isAnswered
+                          ? "rounded-t-full bg-green-500 text-white"
+                          : visited[question.id]
+                            ? "rounded-t-full bg-red-400 text-white"
+                            : "rounded-xl border border-neutral-300 bg-neutral-50 text-black"
+                  }`}
+                >
+                  <span className="relative flex h-full w-full items-center justify-center tabular-nums">
+                    {index + 1}
+                    {isMarked && isAnswered && (
+                      <span className="absolute -bottom-3 -right-3 h-4 w-4 rounded-full bg-green-500" />
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="border-t border-neutral-200 px-4 py-3 md:px-6 md:py-4">
+          <button
+            type="button"
+            onClick={openSubmitModal}
+            disabled={submitting}
+            className="block w-full rounded bg-neutral-900 px-4 py-4 text-xs font-semibold text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-400 sm:text-[16px]"
+          >
+            Submit Test
+          </button>
         </div>
       </div>
-
-    {/* Desktop: Grid layout */}
-    <div className="hidden md:grid grid-cols-5 gap-2">
-      {questions.map((q, index) => {
-        const isAnswered = !!answers[q.id];
-        const isMarked = !!markedReview[q.id];
-        const isCurrent = index === currentIndex;
-
-        return (
-          <button
-            key={q.id}
-            onClick={() => goToQuestion(index)}
-            className={`p-4 text-sm font-medium ${
-              isCurrent
-                ? "bg-neutral-200 text-black rounded-full"
-                : isMarked
-                  ? "bg-purple-500 text-white rounded-full"
-                  : isAnswered
-                    ? "bg-green-500 text-white rounded-t-full"
-                    : visited[q.id]
-                      ? "bg-red-400 text-white rounded-t-full"
-                      : "bg-neutral-50 text-black border rounded-xl border-neutral-300"
-            }`}
-          >
-            <span className="relative flex items-center justify-center">
-              {index + 1}
-              {isMarked && isAnswered && (
-                <span className="absolute -bottom-3 -right-3 w-4 h-4 bg-green-500 rounded-full" />
-              )}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  </div>
-</div>
     </div>
   );
 }
-

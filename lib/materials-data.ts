@@ -175,6 +175,25 @@ export async function getNotesData(
   };
 }
 
+const getCachedNotesDataInternal = unstable_cache(
+  async (stream: string | null, subject: string | null): Promise<NotesResponse> => {
+    const adminSupabase = createAdminClient();
+    return getNotesData(adminSupabase, { stream, subject });
+  },
+  ["materials-notes-data"],
+  { revalidate: 300 },
+);
+
+export async function getCachedNotesData(filters: {
+  stream?: string | null;
+  subject?: string | null;
+} = {}) {
+  return getCachedNotesDataInternal(
+    normalizeFilterValue(filters.stream),
+    normalizeFilterValue(filters.subject),
+  );
+}
+
 export async function getFlashcardsSearchPage(
   supabase: SupabaseClient,
   page: number,

@@ -113,7 +113,21 @@ export default async function TestInstructionsPage({
       redirect("/mock-tests");
     }
 
-    redirect(`/mock-tests/${testId}/start`);
+    const { data: attempt, error: attemptError } = await adminSupabase
+      .from("test_attempts")
+      .insert({
+        user_id: user.id,
+        test_id: testId,
+      })
+      .select("id")
+      .single();
+
+    if (attemptError || !attempt?.id) {
+      console.error("Failed to create test attempt from instructions page", attemptError);
+      redirect("/mock-tests");
+    }
+
+    redirect(`/mock-tests/${testId}/start?attemptId=${attempt.id}`);
   }
 
   return (
