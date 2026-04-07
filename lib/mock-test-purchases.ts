@@ -43,72 +43,15 @@ export type MockAccessState = {
   hasSubscriptionAccess: boolean;
   isPurchased: boolean;
   hasFreeMockAvailable: boolean;
-  activeAttemptId: string | null;
   attemptCount: number;
   hasReachedAttemptLimit: boolean;
   canAccess: boolean;
 };
 
-export async function getLatestOpenAttemptForTest(
-  supabase: SupabaseClient,
-  userId: string,
-  testId: string,
-) {
-  return supabase
-    .from("test_attempts")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("test_id", testId)
-    .is("completed_at", null)
-    .order("id", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-}
-
-export async function getLatestOpenAttemptIdsByTest(
-  supabase: SupabaseClient,
-  userId: string,
-  testIds: string[],
-) {
-  if (testIds.length === 0) {
-    return {
-      data: new Map<string, string>(),
-      error: null,
-    };
-  }
-
-  const { data, error } = await supabase
-    .from("test_attempts")
-    .select("id, test_id")
-    .eq("user_id", userId)
-    .is("completed_at", null)
-    .in("test_id", testIds)
-    .order("id", { ascending: false });
-
-  if (error) {
-    return {
-      data: new Map<string, string>(),
-      error,
-    };
-  }
-
-  const latestAttemptIds = new Map<string, string>();
-
-  (((data ?? []) as Array<{ id: string | null; test_id: string | null }>)).forEach(
-    (attempt) => {
-      if (!attempt.id || !attempt.test_id || latestAttemptIds.has(attempt.test_id)) {
-        return;
-      }
-
-      latestAttemptIds.set(attempt.test_id, attempt.id);
-    },
-  );
-
-  return {
-    data: latestAttemptIds,
-    error: null,
-  };
-}
+type TestSerialRow = {
+  id?: string;
+  serial_no: number | null;
+};
 
 export async function hasConsumedFreeMock(
   supabase: SupabaseClient,
@@ -184,6 +127,67 @@ export async function getAttemptCountsByTest(
 
   return {
     data: attemptCounts,
+    error: null,
+  };
+}
+
+export async function getSelectedFreeMockTestId(
+  supabase: SupabaseClient,
+  userId: string,
+) {
+  const { data: attempts, error: attemptsError } = await supabase
+    .from("test_attempts")
+    .select("test_id")
+    .eq("user_id", userId);
+
+  if (attemptsError) {
+    return {
+      data: null,
+      error: attemptsError,
+    };
+  }
+
+  const attemptedTestIds = Array.from(
+    new Set(
+      ((attempts ?? []) as Array<{ test_id: string | null }>).flatMap((attempt) =>
+        attempt.test_id ? [attempt.test_id] : [],
+      ),
+    ),
+  );
+
+  if (attemptedTestIds.length === 0) {
+    return {
+      data: null,
+      error: null,
+    };
+  }
+
+  const { data: freeSerialTests, error: testsError } = await supabase
+    .from("tests")
+    .select("id, serial_no")
+    .in("id", attemptedTestIds)
+    .eq("serial_no", 1);
+
+  if (testsError) {
+    return {
+      data: null,
+      error: testsError,
+    };
+  }
+
+  const freeSerialTestIds = new Set(
+    ((freeSerialTests ?? []) as Array<TestSerialRow>).flatMap((test) =>
+      test.id ? [test.id] : [],
+    ),
+  );
+
+  const selectedFreeMockTestId =
+    ((attempts ?? []) as Array<{ test_id: string | null }>).find(
+      (attempt) => attempt.test_id && freeSerialTestIds.has(attempt.test_id),
+    )?.test_id ?? null;
+
+  return {
+    data: selectedFreeMockTestId,
     error: null,
   };
 }
@@ -375,16 +379,20 @@ export async function getMockAccessState(
   const [
     subscriptionResult,
     purchaseResult,
-    freeMockResult,
-    openAttemptResult,
     attemptCountResult,
+    testResult,
+    selectedFreeMockResult,
   ] =
     await Promise.all([
       getLatestVerifiedSubscriptionAccess(supabase, userId),
       hasVerifiedMockPurchase(supabase, userId, testId),
-      hasConsumedFreeMock(supabase, userId),
-      getLatestOpenAttemptForTest(supabase, userId, testId),
       getAttemptCountForTest(supabase, userId, testId),
+      supabase
+        .from("tests")
+        .select("serial_no")
+        .eq("id", testId)
+        .maybeSingle(),
+      getSelectedFreeMockTestId(supabase, userId),
     ]);
 
   if (subscriptionResult.error) {
@@ -401,17 +409,10 @@ export async function getMockAccessState(
     };
   }
 
-  if (freeMockResult.error) {
+  if (testResult.error) {
     return {
       data: null,
-      error: { message: freeMockResult.error.message },
-    };
-  }
-
-  if (openAttemptResult.error) {
-    return {
-      data: null,
-      error: { message: openAttemptResult.error.message },
+      error: { message: testResult.error.message },
     };
   }
 
@@ -422,21 +423,36 @@ export async function getMockAccessState(
     };
   }
 
+  if (selectedFreeMockResult.error) {
+    return {
+      data: null,
+      error: { message: selectedFreeMockResult.error.message },
+    };
+  }
+
   const hasSubscriptionAccess = Boolean(subscriptionResult.data);
   const isPurchased = Boolean(purchaseResult.data);
-  const hasFreeMockAvailable = !hasSubscriptionAccess && !freeMockResult.data;
-  const activeAttemptId = openAttemptResult.data?.id ?? null;
+  const serialNo = (testResult.data as TestSerialRow | null)?.serial_no ?? null;
+  const isFreeSerialMock = serialNo === 1;
   const attemptCount = attemptCountResult.data;
-  const hasReachedAttemptLimit = attemptCount >= 2 && !activeAttemptId;
-  const canAttemptThisMock = Boolean(activeAttemptId) || attemptCount < 2;
-  const hasFreeAccessToThisMock = hasFreeMockAvailable || attemptCount > 0;
+  const selectedFreeMockTestId = selectedFreeMockResult.data;
+  const isSelectedFreeMock =
+    selectedFreeMockTestId === null || selectedFreeMockTestId === testId;
+  const hasFreeMockAvailable =
+    !hasSubscriptionAccess &&
+    !isPurchased &&
+    isFreeSerialMock &&
+    isSelectedFreeMock &&
+    attemptCount === 0;
+  const hasReachedAttemptLimit = attemptCount >= 2;
+  const canAttemptThisMock = attemptCount < 2;
+  const hasFreeAccessToThisMock = isFreeSerialMock && isSelectedFreeMock;
 
   return {
     data: {
       hasSubscriptionAccess,
       isPurchased,
       hasFreeMockAvailable,
-      activeAttemptId,
       attemptCount,
       hasReachedAttemptLimit,
       canAccess:

@@ -18,7 +18,7 @@ const navlinks = [
 
 export default function Navbar() {
   const supabase = useMemo(() => createClient(), []);
-  const { user, isAuthLoading } = useAuth();
+  const { user, profile, isAuthLoading } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -61,6 +61,16 @@ export default function Navbar() {
     () => user?.user_metadata?.display_name || user?.email?.split("@")[0] || "User",
     [user]
   );
+  const profileImageUrl = useMemo(() => {
+    const metadata = user?.user_metadata as
+      | {
+          avatar_url?: string | null;
+          picture?: string | null;
+        }
+      | undefined;
+
+    return metadata?.avatar_url || metadata?.picture || profile?.avatar_url || null;
+  }, [profile?.avatar_url, user?.user_metadata]);
 
   return (
     <>
@@ -88,6 +98,7 @@ export default function Navbar() {
               <Link
                 key={item.link}
                 href={item.link}
+                prefetch
                 className="relative rounded-full px-4 py-1.5 text-sm font-medium text-slate-600 transition-colors duration-200 hover:bg-white/60 hover:text-slate-900"
               >
                 {item.title}
@@ -109,9 +120,17 @@ export default function Navbar() {
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                   className="flex w-[148px] items-center justify-between rounded-full bg-slate-100 py-1 pl-1 pr-3 transition-colors duration-200 hover:bg-slate-200"
                 >
-                  {/* User Icon instead of Avatar */}
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm">
-                    <User className="h-4 w-4" />
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-sm">
+                    {profileImageUrl ? (
+                      <img
+                        src={profileImageUrl}
+                        alt={displayName}
+                        className="h-full w-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <User className="h-4 w-4" />
+                    )}
                   </div>
                   <span className="hidden flex-1 px-2 text-sm font-medium text-slate-700 sm:block truncate">
                     {displayName}
@@ -229,6 +248,7 @@ export default function Navbar() {
                   <Link
                     key={item.link}
                     href={item.link}
+                    prefetch
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center rounded-2xl px-4 py-3 text-base font-medium text-slate-700 transition-colors duration-200 hover:bg-slate-50 hover:text-slate-900"
                   >

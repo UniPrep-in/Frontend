@@ -16,13 +16,32 @@ type FlashCardsProps = {
   initialSearchPage: FlashcardsSearchPage | null;
 };
 
+function FlashCardsLoaderState({
+  title = "Loading flashcards",
+  subtitle = "Shuffling your cards into place.",
+}: {
+  title?: string;
+  subtitle?: string;
+}) {
+  return (
+    <main className="min-h-[42rem] py-1">
+      <div className="rounded-xl pt-5 sm:pt-6">
+        <div className="flex min-h-[30rem] items-center justify-center rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 p-6">
+          <Loader title={title} subtitle={subtitle} />
+        </div>
+      </div>
+    </main>
+  );
+}
+
 export default function FlashCards({
   initialSearchPage,
 }: FlashCardsProps) {
   const [activeTab, setActiveTab] = useState<"search" | "yourFlashcards">(
     "search",
   );
-  const [userLoading, setUserLoading] = useState(false);
+  const [isAddingFlashcard, setIsAddingFlashcard] = useState(false);
+  const [showUserFlashcardsLoader, setShowUserFlashcardsLoader] = useState(false);
   const [userError, setUserError] = useState("");
   const [shouldLoadUserFlashcards, setShouldLoadUserFlashcards] = useState(false);
   const [newWord, setNewWord] = useState("");
@@ -106,6 +125,17 @@ export default function FlashCards({
     setUserError("");
   }, [userFlashcardsError]);
 
+  useEffect(() => {
+    if (activeTab !== "yourFlashcards") {
+      setShowUserFlashcardsLoader(false);
+      return;
+    }
+
+    if (!isUserFlashcardsLoading) {
+      setShowUserFlashcardsLoader(false);
+    }
+  }, [activeTab, isUserFlashcardsLoading]);
+
   async function handleAddFlashcard() {
     if (!newWord.trim() || !newMeaning.trim()) {
       return;
@@ -120,7 +150,7 @@ export default function FlashCards({
       .map((value) => value.trim())
       .filter(Boolean);
 
-    setUserLoading(true);
+    setIsAddingFlashcard(true);
     setUserError("");
 
     try {
@@ -176,7 +206,7 @@ export default function FlashCards({
           : "Unable to add flashcard right now.",
       );
     } finally {
-      setUserLoading(false);
+      setIsAddingFlashcard(false);
     }
   }
 
@@ -256,6 +286,7 @@ export default function FlashCards({
 
   function handleYourFlashcardsTabClick() {
     setUserError("");
+    setShowUserFlashcardsLoader(true);
     setShouldLoadUserFlashcards(true);
     setActiveTab("yourFlashcards");
   }
@@ -284,12 +315,10 @@ export default function FlashCards({
       {activeTab === "search" ? (
         <div className="rounded-xl pt-5 sm:pt-6">
           {searchLoading ? (
-            <div className="flex min-h-[18rem] items-center justify-center rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 p-6">
-              <Loader
-                title="Loading flashcards"
-                subtitle="Getting your practice cards ready."
-              />
-            </div>
+            <FlashCardsLoaderState
+              title="Loading flashcards"
+              subtitle="Getting your practice cards ready."
+            />
           ) : searchError ? (
             <div className="rounded-2xl border border-rose-200 bg-rose-50 px-6 py-10 text-center text-rose-700">
               {searchError.message}
@@ -473,13 +502,11 @@ export default function FlashCards({
 
       {activeTab === "yourFlashcards" ? (
         <div className="pt-5">
-          {userLoading || isUserFlashcardsLoading ? (
-            <div className="flex min-h-[30rem] items-center justify-center rounded-2xl bg-gradient-to-br from-orange-50 via-white to-amber-50 p-6">
-              <Loader
-                title="Loading your flashcards"
-                subtitle="Bringing your saved words into view."
-              />
-            </div>
+          {showUserFlashcardsLoader && isUserFlashcardsLoading ? (
+            <FlashCardsLoaderState
+              title="Loading your flashcards"
+              subtitle="Bringing your saved words into view."
+            />
           ) : (
             <>
               <div className="mb-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-lg">
@@ -622,6 +649,7 @@ export default function FlashCards({
                 <button
                   type="button"
                   onClick={handleAddFlashcard}
+                  disabled={isAddingFlashcard}
                   className="group flex w-full items-center justify-center gap-2 rounded-xl border bg-emerald-300 py-3.5 font-semibold text-black shadow-lg shadow-indigo-500/25 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <svg
@@ -637,7 +665,7 @@ export default function FlashCards({
                       d="M12 4v16m8-8H4"
                     />
                   </svg>
-                  Add Flashcard
+                  {isAddingFlashcard ? "Adding flashcard..." : "Add Flashcard"}
                 </button>
               </div>
 
@@ -790,3 +818,5 @@ export default function FlashCards({
     </main>
   );
 }
+
+export { FlashCardsLoaderState };

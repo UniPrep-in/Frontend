@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getNotesData } from "@/lib/materials-data";
+import { getCachedNotesData } from "@/lib/materials-data";
 
 export async function GET(req: Request) {
   try {
@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url);
-    const data = await getNotesData(supabase, {
+    const data = await getCachedNotesData({
       stream: searchParams.get("stream"),
       subject: searchParams.get("subject"),
     });

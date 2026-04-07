@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   ArrowLeft,
-  BookOpenCheck,
   CheckCircle2,
   Circle,
   Clock3,
@@ -10,6 +9,7 @@ import {
 } from "lucide-react";
 
 import { getAttemptReviewData } from "../review-data";
+import ViewSolutionsGate from "./components/ViewSolutionsGate";
 
 interface Props {
   params: Promise<{ attemptId: string }>;
@@ -136,13 +136,7 @@ export default async function ResultPage({ params }: Props) {
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Link
-                    href={`/attempts/${reviewData.attemptId}/solutions`}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-                  >
-                    <BookOpenCheck className="h-4 w-4" />
-                    View Solutions
-                  </Link>
+                  <ViewSolutionsGate attemptId={reviewData.attemptId} />
                 </div>
               </div>
             </div>

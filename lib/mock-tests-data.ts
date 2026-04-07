@@ -1,14 +1,16 @@
 import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  DEFAULT_SINGLE_MOCK_PRICE_PAISE,
   getAttemptCountsByTest,
-  hasConsumedFreeMock,
-  getLatestOpenAttemptIdsByTest,
+  getSelectedFreeMockTestId,
   getSingleMockPricePaise,
   getVerifiedPurchasedTestIds,
 } from "@/lib/mock-test-purchases";
 import {
+  createBrowseAccess,
   getMockContentCategory,
+  getLatestVerifiedSubscriptionAccess,
   normalizeContentStreamLabel,
   resolveContentMeta,
   type ContentCategory,
@@ -29,7 +31,6 @@ export type MockTest = {
   isPurchased: boolean;
   hasSubscriptionAccess: boolean;
   hasFreeMockAvailable: boolean;
-  activeAttemptId: string | null;
   attemptCount: number;
   hasReachedAttemptLimit: boolean;
   canAccess: boolean;
@@ -56,6 +57,12 @@ export type MockTestsBootstrapResponse = MockTestsPageResponse & {
 };
 
 export type SubjectOptionsByStream = Record<MainStreamLabel, string[]>;
+export type MockTestsBootstrapSearchParams = {
+  stream?: string | null;
+  category?: string | null;
+  subject?: string | null;
+  page?: string | null;
+};
 
 type TestRow = {
   id: string;
@@ -65,6 +72,7 @@ type TestRow = {
   subject: string | null;
   stream: string | null;
   year: number;
+  serial_no: number | null;
 };
 
 type GetMockTestsPageDataInput = {
@@ -77,7 +85,7 @@ type GetMockTestsPageDataInput = {
 };
 
 const TEST_SELECT =
-  "id, title, duration_minutes, total_marks, subject, stream, year";
+  "id, title, duration_minutes, total_marks, subject, stream, year, serial_no";
 const MAIN_STREAM_QUERY_ALIASES: Record<MainStreamLabel, string[]> = {
   Science: ["Science", "science"],
   Commerce: ["Commerce", "commerce"],
@@ -93,6 +101,33 @@ const GAT_SUBJECT_QUERY_ALIASES = [
   "current affairs",
   "quantitative aptitude",
 ];
+
+function normalizeSubjectValue(subject: string | null | undefined) {
+  return subject?.trim().replace(/\s+/g, " ").toLowerCase() ?? "";
+}
+
+function formatSubjectLabel(subject: string | null | undefined) {
+  return subject?.trim().replace(/\s+/g, " ") ?? "";
+}
+
+function subjectsMatch(left: string | null | undefined, right: string | null | undefined) {
+  return normalizeSubjectValue(left) === normalizeSubjectValue(right);
+}
+
+function resolveSubjectOption(
+  subjects: string[],
+  value: string | null | undefined,
+) {
+  const normalizedValue = normalizeSubjectValue(value);
+
+  if (!normalizedValue) {
+    return "";
+  }
+
+  return (
+    subjects.find((subject) => subjectsMatch(subject, normalizedValue)) ?? ""
+  );
+}
 
 function getEmptySubjectOptionsByStream(): SubjectOptionsByStream {
   return {
@@ -122,8 +157,10 @@ export function normalizeMockTestsInitialCategory(
     }
   }
 
-  if (value && subjects.includes(value)) {
-    return value;
+  const resolvedSubject = resolveSubjectOption(subjects, value);
+
+  if (resolvedSubject) {
+    return resolvedSubject;
   }
 
   return "all";
@@ -154,10 +191,12 @@ export function normalizeMockTestsStreamLabel(
 }
 
 export function getMockTestsRequestParams(category: string, subjects: string[]) {
-  if (subjects.includes(category)) {
+  const resolvedSubject = resolveSubjectOption(subjects, category);
+
+  if (resolvedSubject) {
     return {
       category: "main" as const,
-      subject: category,
+      subject: resolvedSubject,
     };
   }
 
@@ -234,7 +273,7 @@ async function fetchMainStreamTests(
   }
 
   return {
-    data: data.filter((test) => test.subject === subject),
+    data: data.filter((test) => subjectsMatch(test.subject, subject)),
     error: null,
   };
 }
@@ -295,7 +334,6 @@ function mapTestForDisplay(
   | "isPurchased"
   | "hasSubscriptionAccess"
   | "hasFreeMockAvailable"
-  | "activeAttemptId"
   | "attemptCount"
   | "hasReachedAttemptLimit"
   | "canAccess"
@@ -356,7 +394,13 @@ const getCachedSubjectOptionsByStream = unstable_cache(
         return;
       }
 
-      mainSubjectsByStream[contentMeta.mainStreamLabel].add(test.subject);
+      const formattedSubject = formatSubjectLabel(test.subject);
+
+      if (!formattedSubject) {
+        return;
+      }
+
+      mainSubjectsByStream[contentMeta.mainStreamLabel].add(formattedSubject);
     });
 
     return {
@@ -407,7 +451,8 @@ export async function getMockTestsPageData({
   pageSize = MOCK_TESTS_PAGE_SIZE,
 }: GetMockTestsPageDataInput): Promise<MockTestsPageResponse> {
   const normalizedPage = normalizePage(page);
-  const normalizedSubject = category === "main" ? subject.trim() : "";
+  const normalizedSubject =
+    category === "main" ? formatSubjectLabel(subject) : "";
 
   if (category !== "all" && !access.allowedCategories.includes(category)) {
     return {
@@ -440,7 +485,7 @@ export async function getMockTestsPageData({
       return false;
     }
 
-    if (normalizedSubject && test.subject !== normalizedSubject) {
+    if (normalizedSubject && !subjectsMatch(test.subject, normalizedSubject)) {
       return false;
     }
 
@@ -455,9 +500,8 @@ export async function getMockTestsPageData({
   const hasSubscriptionAccess = access.isSubscriber;
   const [
     { data: purchasedTestIds, error: purchasesError },
-    freeMockResult,
-    { data: openAttemptIdsByTest, error: openAttemptsError },
     { data: attemptCountsByTest, error: attemptCountsError },
+    { data: selectedFreeMockTestId, error: selectedFreeMockError },
     priceResult,
   ] =
     await Promise.all([
@@ -469,72 +513,134 @@ export async function getMockTestsPageData({
           )
         : Promise.resolve({ data: new Set<string>(), error: null }),
       userId
-        ? hasConsumedFreeMock(adminSupabase, userId)
-        : Promise.resolve({ data: false, error: null }),
-      userId
-        ? getLatestOpenAttemptIdsByTest(
-            adminSupabase,
-            userId,
-            paginatedTests.map((test) => test.id),
-          )
-        : Promise.resolve({ data: new Map<string, string>(), error: null }),
-      userId
         ? getAttemptCountsByTest(
             adminSupabase,
             userId,
             paginatedTests.map((test) => test.id),
           )
         : Promise.resolve({ data: new Map<string, number>(), error: null }),
+      userId
+        ? getSelectedFreeMockTestId(adminSupabase, userId)
+        : Promise.resolve({ data: null, error: null }),
       getSingleMockPricePaise(adminSupabase),
     ]);
 
   if (purchasesError) {
-    throw purchasesError;
-  }
-
-  if (freeMockResult.error) {
-    throw freeMockResult.error;
-  }
-
-  if (openAttemptsError) {
-    throw openAttemptsError;
+    console.error("Failed to load purchased mock ids for mock tests page", purchasesError);
   }
 
   if (attemptCountsError) {
-    throw attemptCountsError;
+    console.error("Failed to resolve attempt counts for mock tests page", attemptCountsError);
+  }
+
+  if (selectedFreeMockError) {
+    console.error(
+      "Failed to resolve selected free mock for mock tests page",
+      selectedFreeMockError,
+    );
   }
 
   if (priceResult.error || !priceResult.data) {
-    throw new Error(priceResult.error?.message || "Single mock price is not configured");
+    console.error(
+      "Failed to resolve single mock price for mock tests page",
+      priceResult.error ?? new Error("Single mock price is not configured"),
+    );
   }
 
-  const hasFreeMockAvailable = Boolean(userId) && !hasSubscriptionAccess && !freeMockResult.data;
+  const purchasedTestIdsSafe = purchasesError ? new Set<string>() : purchasedTestIds;
+  const attemptCountsByTestSafe = attemptCountsError
+    ? new Map<string, number>()
+    : attemptCountsByTest;
+  const selectedFreeMockTestIdSafe = selectedFreeMockError
+    ? null
+    : selectedFreeMockTestId;
+  const singleMockPricePaise =
+    priceResult.error || !priceResult.data
+      ? DEFAULT_SINGLE_MOCK_PRICE_PAISE
+      : priceResult.data;
 
   return {
     tests: paginatedTests.map((test) => {
-      const isPurchased = purchasedTestIds.has(test.id);
-      const activeAttemptId = openAttemptIdsByTest.get(test.id) ?? null;
-      const attemptCount = attemptCountsByTest.get(test.id) ?? 0;
-      const hasReachedAttemptLimit = attemptCount >= 2 && !activeAttemptId;
-      const canAttemptThisMock = Boolean(activeAttemptId) || attemptCount < 2;
-      const hasFreeAccessToThisMock = hasFreeMockAvailable || attemptCount > 0;
+      const isPurchased = purchasedTestIdsSafe.has(test.id);
+      const attemptCount = attemptCountsByTestSafe.get(test.id) ?? 0;
+      const hasReachedAttemptLimit = attemptCount >= 2;
+      const canAttemptThisMock = attemptCount < 2;
+      const isFreeSerialMock = test.serial_no === 1;
+      const isSelectedFreeMock =
+        selectedFreeMockTestIdSafe === null || selectedFreeMockTestIdSafe === test.id;
+      const hasFreeMockAvailable =
+        Boolean(userId) &&
+        !hasSubscriptionAccess &&
+        !isPurchased &&
+        isFreeSerialMock &&
+        isSelectedFreeMock &&
+        attemptCount === 0;
+      const hasFreeAccessToThisMock = isFreeSerialMock && isSelectedFreeMock;
 
       return {
         ...mapTestForDisplay(test, access.baseStreamLabel),
         isPurchased,
         hasSubscriptionAccess,
         hasFreeMockAvailable,
-        activeAttemptId,
         attemptCount,
         hasReachedAttemptLimit,
         canAccess:
           (hasSubscriptionAccess || isPurchased || hasFreeAccessToThisMock) &&
           canAttemptThisMock,
-        singleMockPricePaise: priceResult.data,
+        singleMockPricePaise,
       };
     }),
     totalPages,
     currentPage: normalizedPage,
     totalCount,
+  };
+}
+
+export async function getMockTestsBootstrapData({
+  searchParams,
+  userId = null,
+}: {
+  searchParams: MockTestsBootstrapSearchParams;
+  userId?: string | null;
+}): Promise<MockTestsBootstrapResponse> {
+  const adminSupabase = createAdminClient();
+  const { data: subscriptionAccess, error: accessError } = userId
+    ? await getLatestVerifiedSubscriptionAccess(adminSupabase, userId)
+    : { data: null, error: null };
+
+  if (accessError) {
+    throw accessError;
+  }
+
+  const requestedStream = searchParams.stream ?? null;
+  const requestedCategory = searchParams.category ?? searchParams.subject ?? null;
+  const access = subscriptionAccess ?? createBrowseAccess(requestedStream);
+  const subjectOptionsByStream = await getSubjectOptionsByStream();
+  const stream = normalizeMockTestsStreamLabel(requestedStream, access);
+  const availableSubjects = subjectOptionsByStream[stream] ?? [];
+  const category = normalizeMockTestsInitialCategory(
+    requestedCategory,
+    access,
+    availableSubjects,
+  );
+  const requestParams = getMockTestsRequestParams(category, availableSubjects);
+  const currentPage = parseMockTestsPage(searchParams.page);
+  const pageData = await getMockTestsPageData({
+    access,
+    userId,
+    category: requestParams.category,
+    subject: requestParams.subject,
+    page: currentPage,
+  });
+
+  return {
+    ...pageData,
+    access,
+    subjectOptionsByStream,
+    resolvedFilters: {
+      stream,
+      category,
+      page: currentPage,
+    },
   };
 }
