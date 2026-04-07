@@ -360,14 +360,14 @@ export default function MockTestsClient({
     pendingFilterKey !== null && pendingFilterKey === currentFilterKey;
   const isFilterTransitioning =
     isAwaitingRequestedFilter ||
-    (Boolean(data) &&
-      isLoading &&
-      (data.resolvedFilters.stream !== filters.stream ||
-        data.resolvedFilters.category !== filters.category));
+    (isLoading && data
+      ? data.resolvedFilters.stream !== filters.stream ||
+        data.resolvedFilters.category !== filters.category
+      : false);
   const isPageTransitioning =
-    Boolean(visibleData) &&
-    isLoading &&
-    visibleData.currentPage !== filters.page;
+    isLoading && visibleData
+      ? visibleData.currentPage !== filters.page
+      : false;
   const isResultsTransitioning = isFilterTransitioning || isPageTransitioning;
   const displayedPage = visibleData?.currentPage ?? filters.page;
 
