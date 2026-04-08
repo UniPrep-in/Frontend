@@ -1,6 +1,8 @@
 'use client';
 
-import styled from 'styled-components';
+import { motion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
+import gsap from 'gsap';
 
 type LoaderProps = {
   title?: string;
@@ -20,111 +22,98 @@ export default function Loader({
   compact = false,
   showText = true,
 }: LoaderProps) {
+  const shellRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!shellRef.current) return;
+
+    gsap.fromTo(
+      shellRef.current,
+      {
+        opacity: 0,
+        scale: 0.92,
+        y: 16,
+      },
+      {
+        opacity: 1,
+        scale: 1,
+        y: 0,
+        duration: 0.6,
+        ease: 'power3.out',
+      }
+    );
+  }, []);
+
   return (
-    <StyledWrapper $compact={compact} className={className}>
-      <div className="shell" role="status" aria-live="polite" aria-busy="true">
-        <div className="dots" aria-hidden="true">
-          <span />
-          <span />
-          <span />
+    <div
+      className={[
+        'inline-flex items-center justify-center',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <motion.div
+        ref={shellRef}
+        className={[
+          'flex flex-col items-center text-center rounded-[2.4rem]',
+          compact
+            ? 'w-auto p-0 shadow-none'
+            : 'w-full max-w-[19rem] gap-4 px-7 py-6 shadow-[0_18px_45px_rgba(245,158,11,0.14),inset_0_1px_0_rgba(255,255,255,0.9)]',
+          'bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(255,247,237,0.98)),radial-gradient(circle_at_top,rgba(254,243,199,0.7),transparent_60%)]',
+        ].join(' ')}
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4, ease: 'easeOut' }}
+      >
+        <div
+          className={[
+            'inline-flex items-center rounded-full',
+            compact
+              ? 'gap-2 p-0 shadow-none'
+              : 'gap-3 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_12px_28px_rgba(251,146,60,0.16)]',
+            'bg-[linear-gradient(180deg,rgba(255,247,237,0.96),rgba(255,237,213,0.92))]',
+          ].join(' ')}
+          aria-hidden="true"
+        >
+          {[0, 1, 2].map((dot) => (
+            <motion.span
+              key={dot}
+              className={[
+                'rounded-full bg-[linear-gradient(180deg,#fbbf24,#fb923c)]',
+                compact
+                  ? 'h-2 w-2 shadow-none'
+                  : 'h-4 w-4 shadow-[0_0_0_0.2rem_rgba(255,237,213,0.85)]',
+              ].join(' ')}
+              animate={{
+                y: [0, -8, 0],
+                opacity: [0.6, 1, 0.6],
+                scale: [1, 1.08, 1],
+              }}
+              transition={{
+                duration: 0.9,
+                repeat: Infinity,
+                delay: dot * 0.15,
+                ease: 'easeInOut',
+              }}
+            />
+          ))}
         </div>
 
         {showText ? (
-          <div className="copy">
-            <p className="title">{title}</p>
-            <p className="subtitle">{subtitle}</p>
+          <div className="flex flex-col gap-1.5">
+            <p className="m-0 text-base font-bold tracking-[0.01em] text-[#7c2d12]">
+              {title}
+            </p>
+            <p className="m-0 text-[0.92rem] leading-6 text-[#9a3412]">
+              {subtitle}
+            </p>
           </div>
         ) : null}
-      </div>
-    </StyledWrapper>
+      </motion.div>
+    </div>
   );
 }
-
-const StyledWrapper = styled.div<{ $compact: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  .shell {
-    display: flex;
-    width: ${({ $compact }) => ($compact ? "auto" : "min(100%, 19rem)")};
-    flex-direction: column;
-    align-items: center;
-    gap: 1.1rem;
-    border-radius: 2.4rem;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 247, 237, 0.98)),
-      radial-gradient(circle at top, rgba(254, 243, 199, 0.7), transparent 60%);
-    padding: ${({ $compact }) => ($compact ? "0" : "1.5rem 1.75rem")};
-    box-shadow: ${({ $compact }) =>
-      $compact
-        ? "none"
-        : "0 18px 45px rgba(245, 158, 11, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9)"};
-    text-align: center;
-  }
-
-  .dots {
-    display: inline-flex;
-    align-items: center;
-    gap: ${({ $compact }) => ($compact ? "0.45rem" : "0.8rem")};
-    padding: ${({ $compact }) => ($compact ? "0" : "0.9rem 1.1rem")};
-    border-radius: 999px;
-    background: linear-gradient(180deg, rgba(255, 247, 237, 0.96), rgba(255, 237, 213, 0.92));
-    box-shadow: ${({ $compact }) =>
-      $compact
-        ? "none"
-        : "inset 0 1px 0 rgba(255, 255, 255, 0.88), 0 12px 28px rgba(251, 146, 60, 0.16)"};
-  }
-
-  .dots span {
-    width: ${({ $compact }) => ($compact ? "0.5rem" : "1rem")};
-    height: ${({ $compact }) => ($compact ? "0.5rem" : "1rem")};
-    border-radius: 999px;
-    background: linear-gradient(180deg, #fbbf24, #fb923c);
-    box-shadow: ${({ $compact }) =>
-      $compact ? "none" : "0 0 0 0.2rem rgba(255, 237, 213, 0.85)"};
-    animation: bounceDot 1s ease-in-out infinite;
-  }
-
-  .dots span:nth-child(2) {
-    animation-delay: 0.16s;
-  }
-
-  .dots span:nth-child(3) {
-    animation-delay: 0.32s;
-  }
-
-  .copy {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .title {
-    margin: 0;
-    color: #7c2d12;
-    font-size: 1rem;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-  }
-
-  .subtitle {
-    margin: 0;
-    color: #9a3412;
-    font-size: 0.92rem;
-    line-height: 1.5;
-  }
-
-  @keyframes bounceDot {
-    0%,
-    100% {
-      transform: translateY(0);
-      opacity: 0.6;
-    }
-
-    50% {
-      transform: translateY(-0.3rem);
-      opacity: 1;
-    }
-  }
-`;

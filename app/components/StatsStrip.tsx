@@ -5,22 +5,22 @@ import { motion, type Variants } from "framer-motion";
 
 const stats = [
     {
-        icon: <FaUsers className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />,
+        icon: <FaUsers className="w-6 h-6 md:w-8 md:h-8 text-black" />,
         value: "1000+",
         label: "CUET Aspirants",
     },
     {
-        icon: <FaUserTie className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />,
+        icon: <FaUserTie className="w-6 h-6 md:w-8 md:h-8 text-black" />,
         value: "50+",
         label: "Domain Mentors",
     },
     {
-        icon: <FaQuestionCircle className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />,
+        icon: <FaQuestionCircle className="w-6 h-6 md:w-8 md:h-8 text-black" />,
         value: "10,000+",
         label: "Questions Practiced",
     },
     {
-        icon: <FaFileAlt className="w-6 h-6 md:w-8 md:h-8 text-blue-600" />,
+        icon: <FaFileAlt className="w-6 h-6 md:w-8 md:h-8 text-black" />,
         value: "Real",
         label: "CUET Pattern Mocks",
     },
@@ -109,7 +109,7 @@ export default function StatsStrip() {
                                 }`}
                         >
                             <motion.div 
-                                className="mb-3 p-3 rounded-xl bg-gray-50 group-hover:bg-white group-hover:shadow-lg transition-all duration-300"
+                                className="mb-3 p-3 rounded-xl border bg-yellow-300 group-hover:bg-yellow-400 group-hover:shadow-lg transition-all duration-300"
                                 variants={iconVariants}
                                 whileHover={{ 
                                     scale: 1.15, 
