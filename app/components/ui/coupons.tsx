@@ -6,7 +6,7 @@ export default function Coupon() {
   const couponCode = "EARLYBIRDS20";
   const str: string[] = couponCode.split("");
 
-  const offerEndDate = new Date("2026-04-05T23:59:59").getTime();
+  const offerEndDate = new Date("2026-04-21T23:59:59").getTime();
 
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
