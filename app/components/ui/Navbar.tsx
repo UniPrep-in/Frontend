@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Menu, X, ChevronDown, LogOut, Mail, User } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/providers/AuthProvider";
 
 const navlinks = [
@@ -24,6 +24,7 @@ export default function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   // Handle scroll effect
   useEffect(() => {
@@ -99,7 +100,11 @@ export default function Navbar() {
                 key={item.link}
                 href={item.link}
                 prefetch
-                className="relative rounded-full px-4 py-1.5 text-sm font-medium text-slate-600 transition-colors duration-200 hover:bg-white/60 hover:text-slate-900"
+                className={`relative rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-200 ${
+                  pathname === item.link
+                    ? "text-blue-500"
+                    : "text-slate-600 hover:bg-white/60 hover:text-slate-900"
+                }`}
               >
                 {item.title}
               </Link>
@@ -152,7 +157,7 @@ export default function Navbar() {
                       transition={{ duration: 0.2 }}
                       className="absolute right-0 top-full mt-3 w-64 origin-top-right rounded-2xl border border-slate-200 bg-white p-2 shadow-xl"
                     >
-                      <div className="rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-50 via-white to-blue-50 px-4 py-3 shadow-sm">
+                      <div className="px-4 py-3 border-b border-b-neutral-200">
                         <p className="truncate text-sm font-semibold text-slate-900">
                           {displayName}
                         </p>
@@ -162,26 +167,23 @@ export default function Navbar() {
                         </div>
                       </div>
 
-                      <div className="mt-2 flex flex-col gap-1">
+                      <div className="mt-2 flex flex-col">
                         <Link
                           href="/profile"
                           className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors duration-200 hover:bg-slate-100"
                           onClick={() => setIsProfileOpen(false)}
                         >
                           <span className="flex items-center gap-2.5">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                            <span className="flex h-7 w-7 items-center justify-center rounded-lg text-black">
                               <User className="h-4 w-4" />
                             </span>
                             Profile
-                          </span>
-                          <span className="text-xs uppercase tracking-wider text-slate-400">
-                            Open
                           </span>
                         </Link>
 
                         <button
                           onClick={handleLogout}
-                          className="flex w-full items-center gap-2.5 rounded-xl border border-rose-100 px-3 py-2.5 text-sm font-medium text-rose-600 transition-colors duration-200 hover:bg-rose-50"
+                          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium text-rose-600 transition-colors duration-200 hover:bg-rose-50"
                         >
                           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50 text-rose-500">
                             <LogOut className="h-4 w-4" />
@@ -250,7 +252,11 @@ export default function Navbar() {
                     href={item.link}
                     prefetch
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center rounded-2xl px-4 py-3 text-base font-medium text-slate-700 transition-colors duration-200 hover:bg-slate-50 hover:text-slate-900"
+                    className={`flex items-center rounded-2xl px-4 py-3 text-base font-medium transition-colors duration-200 ${
+                      pathname === item.link
+                        ? "text-blue-500"
+                        : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
                   >
                     {item.title}
                   </Link>
