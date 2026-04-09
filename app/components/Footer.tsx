@@ -63,16 +63,16 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="bg-white border-t border-gray-200">
+    <footer className="bg-black border-t">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-14">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12">
           
           {/* Left Side - Brand */}
           <div className="flex flex-col gap-5">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+            <h2 className="text-2xl md:text-3xl font-bold text-white">
               Uniprep.in
             </h2>
-            <p className="text-gray-600 text-base md:text-lg max-w-md leading-relaxed">
+            <p className="text-neutral-300 text-base md:text-md max-w-md leading-relaxed">
               Our study materials are carefully curated by CUET rankers, ensuring you learn exactly what matters - nothing extra, nothing missing.
             </p>
             
@@ -95,7 +95,7 @@ export default function Footer() {
           <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 sm:gap-8">
             {navLinks.map((section) => (
               <div key={section.title} className="flex flex-col gap-3">
-                <h3 className="font-semibold text-gray-900">
+                <h3 className="font-semibold text-white">
                   {section.title}
                 </h3>
                 <ul className="flex flex-col gap-2.5">
@@ -103,7 +103,7 @@ export default function Footer() {
                     <li key={link.name}>
                       <Link
                         href={link.href}
-                        className="text-gray-600 hover:text-gray-900 text-sm transition-colors"
+                        className="text-neutral-400 hover:text-neutral-500 text-sm transition-colors"
                       >
                         {link.name}
                       </Link>
