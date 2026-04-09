@@ -571,11 +571,8 @@ export default function Pricing() {
 
             <div className="flex-1 overflow-y-auto p-4 pb-36 sm:pb-5 md:p-5">
               <div className="space-y-1 text-center">
-              <p className="text-xs font-medium uppercase tracking-[0.32em] text-neutral-500">
-                Choose your stream
-              </p>
               <h2 className="text-lg font-semibold text-neutral-900 md:text-xl">
-                Pick the stream for your {selectedPlan.planType} plan
+                Pick a stream for your {selectedPlan.planType} plan
               </h2>
             </div>
 
@@ -588,13 +585,13 @@ export default function Pricing() {
                     key={stream.key}
                     type="button"
                     onClick={() => setSelectedStream(stream.key)}
-                    className={`min-w-0 rounded-2xl border px-3 py-3 text-left transition-all ${
+                    className={`min-w-0 border rounded-2xl px-3 py-3 text-left transition-all ${
                       isSelected
-                        ? "border-emerald-500 bg-emerald-50 shadow-sm"
-                        : "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-neutral-100"
+                        ? "border bg-yellow-300 shadow-sm"
+                        : "shadow-sm border-transparent hover:border-neutral-100"
                     }`}
                   >
-                    <p className="text-sm font-semibold text-neutral-900 md:text-base">
+                    <p className="text-sm font-semibold text-black md:text-base">
                       {stream.label}
                     </p>
                     <p className="mt-1 text-xs text-neutral-500 line-through md:text-sm">
@@ -605,7 +602,7 @@ export default function Pricing() {
                         getPlanCheckoutAmountPaise(selectedPlan.id, selectedPlan.id !== "basic"),
                       )}
                     </p>
-                    <p className="mt-1 text-[11px] text-neutral-600 md:text-xs">
+                    <p className="mt-1 text-[11px] text-black md:text-xs">
                       {getPlanCardSubjects(selectedPlan.id)}
                     </p>
                   </button>
@@ -615,21 +612,18 @@ export default function Pricing() {
 
             {selectedPlan.id === "basic" ? (
               <div className="mt-4 space-y-2.5">
-                <p className="text-center text-xs font-medium uppercase tracking-[0.32em] text-neutral-500">
-                  Add General Aptitude Test
-                </p>
                 <button
                   type="button"
                   onClick={() => setIncludeGat((current) => !current)}
-                  className={`mx-auto flex w-full max-w-sm items-center justify-between rounded-2xl border px-4 py-2.5 text-left transition-all ${
+                  className={`mx-auto border flex w-full max-w-sm items-center justify-between rounded-2xl px-4 py-2.5 text-left transition-all ${
                     includeGat
-                      ? "border-emerald-500 bg-emerald-50"
-                      : "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-neutral-100"
+                      ? "border bg-yellow-300"
+                      : "shadow-sm border-transparent hover:border-neutral-100"
                   }`}
                 >
                   <div>
-                    <p className="text-sm font-semibold text-neutral-900">GAT</p>
-                    <p className="text-xs text-neutral-600">Optional add-on for Basic</p>
+                    <p className="text-sm font-semibold text-neutral-900">Add General Aptitude Test</p>
+                    <p className="text-xs text-black">Optional add-on for Basic</p>
                   </div>
                   <div className="text-right">
                     <p className="text-base font-bold text-neutral-900">Rs. 199</p>
@@ -642,22 +636,23 @@ export default function Pricing() {
             ) : null}
 
             {selectedStream ? (
-              <div className="mt-4 grid gap-3 rounded-2xl border border-neutral-200 bg-neutral-50 p-3.5 lg:grid-cols-[minmax(0,1fr)_190px]">
+              <div className="mt-2 grid gap-3 rounded-2xl bg-neutral-100 p-4 lg:grid-cols-[minmax(0,1fr)_190px]">
                 <div className="space-y-2.5">
                   <div className="space-y-1">
-                    <p className="text-xs font-medium uppercase tracking-[0.32em] text-neutral-500">
+                    <p className="text-sm font-medium text-black">
                       Apply Coupon
                     </p>
-                    {appliedCoupon ? (
-                      <p className="text-sm text-emerald-700">
-                        Applied code:{" "}
-                        <span className="font-semibold">{appliedCoupon.couponCode}</span>
-                      </p>
-                    ) : (
-                      <p className="text-sm text-neutral-600">
-                        Add a coupon before checkout.
-                      </p>
-                    )}
+                    {couponFeedback ? (
+                    <p
+                      className={`text-sm ${
+                        couponFeedback.type === "success"
+                          ? "text-green-700"
+                          : "text-red-700"
+                      }`}
+                    >
+                      {couponFeedback.message}
+                    </p>
+                  ) : null}
                   </div>
 
                   <div className="flex flex-col gap-3">
@@ -674,14 +669,14 @@ export default function Pricing() {
                         }
                       }}
                       placeholder="Enter coupon code"
-                      className="w-full rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm text-neutral-900 outline-none transition focus:border-neutral-400"
+                      className="w-full rounded-2xl border border-neutral-200 bg-white p-3 text-xs text-black outline-none transition focus:border-neutral-400"
                     />
                     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                       <button
                         type="button"
                         onClick={handleApplyCoupon}
                         disabled={couponLoading || loadingPlanId !== null}
-                        className="rounded-2xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 transition hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-lg border bg-emerald-300 px-4 py-2 text-sm font-semibold text-black transition disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {couponLoading ? "Applying..." : "Apply Coupon"}
                       </button>
@@ -690,29 +685,17 @@ export default function Pricing() {
                           type="button"
                           onClick={resetCouponState}
                           disabled={couponLoading || loadingPlanId !== null}
-                          className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="rounded-lg border bg-red-300 px-4 py-2 text-sm font-semibold text-black transition disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           Remove Coupon
                         </button>
                       ) : null}
                     </div>
                   </div>
-
-                  {couponFeedback ? (
-                    <p
-                      className={`text-sm ${
-                        couponFeedback.type === "success"
-                          ? "text-emerald-700"
-                          : "text-rose-700"
-                      }`}
-                    >
-                      {couponFeedback.message}
-                    </p>
-                  ) : null}
                 </div>
 
                 <div className="rounded-2xl border border-neutral-200 bg-white p-3.5">
-                  <p className="text-xs font-medium uppercase tracking-[0.24em] text-neutral-500">
+                  <p className="text-sm font-medium text-black">
                     Price Details
                   </p>
                   <div className="mt-3 flex items-center justify-between text-sm text-neutral-600">
