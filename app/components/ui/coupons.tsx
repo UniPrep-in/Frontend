@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 export default function Coupon() {
   const couponCode = "EARLYBIRDS20";
@@ -15,6 +16,7 @@ export default function Coupon() {
   });
 
   const [copied, setCopied] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
 
   useEffect(() => {
     const updateTimer = () => {
@@ -57,11 +59,28 @@ export default function Coupon() {
 
   return (
     <main className="mx-auto w-full bg-black">
+      <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-2 md:hidden">
+        <p className="text-xs font-medium text-white">
+          Offer
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setIsMinimized((prev) => !prev)}
+          className="flex items-center gap-1 rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-300 transition hover:bg-zinc-900"
+        >
+          {isMinimized ? "Show" : "Hide"}
+          {isMinimized ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+      </div>
+
       <div
-        className="flex flex-col gap-4 overflow-hidden p-4 text-sm md:flex-row md:items-center md:justify-between"
+        className={`overflow-hidden transition-all duration-300 ${
+          isMinimized ? "max-h-0 py-0 opacity-0 md:max-h-none md:py-4 md:opacity-100" : "max-h-[500px] opacity-100"
+        } flex flex-col gap-4 p-4 text-sm md:flex-row md:items-center md:justify-between`}
       >
         <h1 className="text-center text-sm text-white md:text-left md:text-[16px]">
-          🎉 Claim This During Checkout ! 🎉
+          🎉 Claim This At Checkout ! 🎉
         </h1>
 
         <div className="flex w-full items-center justify-center gap-1 overflow-x-auto text-white md:w-auto md:gap-2">

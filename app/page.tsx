@@ -28,15 +28,14 @@ export default function Home() {
 
       <CuetCoverage />
 
-      <div className="z-50 w-full bg-black shadow-xl">
-        <Coupon />
-      </div>
-
       <Pricing />
 
       <Reviews />
 
       <Faq />
+      <div className="fixed bottom-0 left-1/2 z-50 w-full -translate-x-1/2 bg-black shadow-xl">
+        <Coupon />
+      </div>
     </main>
   );
 }
