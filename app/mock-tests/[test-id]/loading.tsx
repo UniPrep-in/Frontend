@@ -1,12 +1,5 @@
-import Loader from "@/app/components/ui/loader";
+import { MockTestsRouteFallbackLoader } from "../MockTestsNavigationLoader";
 
 export default function MockTestInstructionsLoading() {
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-orange-50 via-white to-amber-50 px-4 text-center">
-      <Loader
-        title="Loading test instructions"
-        subtitle="Preparing the proceed screen for you."
-      />
-    </div>
-  );
+  return <MockTestsRouteFallbackLoader />;
 }

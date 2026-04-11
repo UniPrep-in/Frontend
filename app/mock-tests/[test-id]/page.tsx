@@ -1,10 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import MockTestInstructionsContent, {
   PROCEED_CONFIRMATION_TEXT,
 } from "./MockTestInstructionsContent";
+import ProceedForm from "./ProceedForm";
+import { MockTestsRouteReady } from "../MockTestsNavigationLoader";
 import { getMockAccessState } from "@/lib/mock-test-purchases";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -113,62 +114,23 @@ export default async function TestInstructionsPage({
       redirect("/mock-tests");
     }
 
-    const { data: attempt, error: attemptError } = await adminSupabase
-      .from("test_attempts")
-      .insert({
-        user_id: user.id,
-        test_id: testId,
-      })
-      .select("id")
-      .single();
-
-    if (attemptError || !attempt?.id) {
-      console.error("Failed to create test attempt from instructions page", attemptError);
-      redirect("/mock-tests");
-    }
-
-    redirect(`/mock-tests/${testId}/start?attemptId=${attempt.id}`);
+    redirect(`/mock-tests/${testId}/start?begin=1`);
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-neutral-100 sm:p-6 p-4">
+      <MockTestsRouteReady />
+
       <div className="max-w-6xl w-full rounded-2xl bg-white p-8 shadow-xl pb-40">
         <MockTestInstructionsContent
           title={test.title}
           durationMinutes={test.duration_minutes}
         />
 
-        <form
+        <ProceedForm
           action={startTest}
-          className="fixed bottom-0 items-center justify-center left-0 w-full bg-white border-t border-neutral-300 px-4 sm:py-4 py-2 flex flex-col sm:gap-4 gap-2"
-        >
-          <label className="flex items-center sm:py-2 sm:gap-4 gap-2 sm:text-[16px] text-xs max-w-6xl text-black">
-            <input
-              id="confirmStart"
-              name="confirmStart"
-              type="checkbox"
-              required
-              className="w-6 h-6 rouned-lg"
-            />
-            {PROCEED_CONFIRMATION_TEXT}
-          </label>
-
-          <div className="flex gap-4 max-w-6xl mx-auto w-full">
-            <button
-              type="submit"
-              className="w-full sm:text-[16px] text-xs bg-emerald-300 text-black border py-2 rounded-lg hover:opacity-90 transition"
-            >
-              Proceed
-            </button>
-
-            <Link
-              className="w-full sm:text-[16px] text-xs flex items-center justify-center bg-red-200 text-black border py-2 rounded-lg hover:opacity-90 transition"
-              href="/mock-tests"
-            >
-              Go Back
-            </Link>
-          </div>
-        </form>
+          confirmationText={PROCEED_CONFIRMATION_TEXT}
+        />
       </div>
     </div>
   );

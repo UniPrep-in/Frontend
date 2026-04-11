@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import SubmitModal from "./components/SummaryPanel";
 import Loader from "@/app/components/ui/loader";
+import { useMockTestsNavigationLoader } from "../../MockTestsNavigationLoader";
 
 interface Option {
   id: string;
@@ -30,6 +31,7 @@ export default function TestEngine({
   durationMinutes,
 }: Props) {
   const router = useRouter();
+  const { hideLoader } = useMockTestsNavigationLoader();
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -51,6 +53,10 @@ export default function TestEngine({
   const [startTime, setStartTime] = useState<number>(() => Date.now());
 
   const currentQuestion = questions[currentIndex];
+
+  useEffect(() => {
+    hideLoader();
+  }, [hideLoader]);
 
   useEffect(() => {
     const nextQ = questions[currentIndex + 1];
