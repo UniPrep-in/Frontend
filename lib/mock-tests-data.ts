@@ -1,10 +1,8 @@
 import { unstable_cache } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  DEFAULT_SINGLE_MOCK_PRICE_PAISE,
   getAttemptCountsByTest,
   getSelectedFreeMockTestId,
-  getSingleMockPricePaise,
   getVerifiedPurchasedTestIds,
 } from "@/lib/mock-test-purchases";
 import {
@@ -502,7 +500,6 @@ export async function getMockTestsPageData({
     { data: purchasedTestIds, error: purchasesError },
     { data: attemptCountsByTest, error: attemptCountsError },
     { data: selectedFreeMockTestId, error: selectedFreeMockError },
-    priceResult,
   ] =
     await Promise.all([
       userId
@@ -522,7 +519,6 @@ export async function getMockTestsPageData({
       userId
         ? getSelectedFreeMockTestId(adminSupabase, userId)
         : Promise.resolve({ data: null, error: null }),
-      getSingleMockPricePaise(adminSupabase),
     ]);
 
   if (purchasesError) {
@@ -540,13 +536,6 @@ export async function getMockTestsPageData({
     );
   }
 
-  if (priceResult.error || !priceResult.data) {
-    console.error(
-      "Failed to resolve single mock price for mock tests page",
-      priceResult.error ?? new Error("Single mock price is not configured"),
-    );
-  }
-
   const purchasedTestIdsSafe = purchasesError ? new Set<string>() : purchasedTestIds;
   const attemptCountsByTestSafe = attemptCountsError
     ? new Map<string, number>()
@@ -554,10 +543,8 @@ export async function getMockTestsPageData({
   const selectedFreeMockTestIdSafe = selectedFreeMockError
     ? null
     : selectedFreeMockTestId;
-  const singleMockPricePaise =
-    priceResult.error || !priceResult.data
-      ? DEFAULT_SINGLE_MOCK_PRICE_PAISE
-      : priceResult.data;
+  // Single mock pricing is intentionally disabled on the page for now.
+  const singleMockPricePaise = 0;
 
   return {
     tests: paginatedTests.map((test) => {

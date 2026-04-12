@@ -23,6 +23,10 @@ import {
 } from "@/lib/razorpay-checkout";
 import { useAuth } from "@/providers/AuthProvider";
 import {
+  MockTestsRouteReady,
+  useMockTestsNavigationLoader,
+} from "./MockTestsNavigationLoader";
+import {
   type ContentCategory,
   getDisplayPriceRupees,
   type MainStreamLabel,
@@ -219,6 +223,7 @@ export default function MockTestsClient({
   const hasHandledInitialAuthSyncRef = useRef(false);
   const [pendingFilterKey, setPendingFilterKey] = useState<string | null>(null);
   const pathname = "/mock-tests";
+  const { showLoader } = useMockTestsNavigationLoader();
   const initialResolvedFilters = initialData.resolvedFilters;
   const [filters, setFilters] = useState<FilterState>({
     stream: initialResolvedFilters?.stream ?? parseStreamLabel(initialParams.stream),
@@ -695,6 +700,7 @@ export default function MockTestsClient({
         <Link
           href={`/mock-tests/${test.id}`}
           prefetch
+          onClick={() => showLoader()}
           className="inline-block rounded-xl border border-black bg-emerald-300 px-4 py-2 text-black transition hover:bg-emerald-400"
         >
           {test.attemptCount >= 1
@@ -743,6 +749,8 @@ export default function MockTestsClient({
 
   return (
     <>
+      <MockTestsRouteReady />
+
       {feedback ? (
         <div className="fixed right-4 top-24 z-50 w-[calc(100%-2rem)] max-w-sm">
           <div

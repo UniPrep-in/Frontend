@@ -10,12 +10,13 @@ export default async function StartTestPage({
   searchParams,
 }: {
   params: Promise<{ "test-id": string }>;
-  searchParams: Promise<{ attemptId?: string }>;
+  searchParams: Promise<{ attemptId?: string; begin?: string }>;
 }) {
   const resolvedParams = await params;
   const resolvedSearchParams = await searchParams;
 
   const testId = resolvedParams["test-id"];
+  const shouldBegin = resolvedSearchParams?.begin === "1";
   const attemptId =
     resolvedSearchParams?.attemptId && resolvedSearchParams.attemptId !== "undefined"
       ? resolvedSearchParams.attemptId
@@ -62,28 +63,26 @@ export default async function StartTestPage({
     if (!attempt) {
       redirect("/mock-tests");
     }
-  }
+  } else {
+    if (!shouldBegin) {
+      redirect(`/mock-tests/${testId}`);
+    }
 
-  const { data: access, error: accessError } = await getMockAccessState(
-    adminSupabase,
-    user.id,
-    testId,
-  );
+    const { data: access, error: accessError } = await getMockAccessState(
+      adminSupabase,
+      user.id,
+      testId,
+    );
 
-  if (accessError) {
-    console.error("Failed to resolve mock access on start page", accessError);
-    redirect("/mock-tests");
-  }
-
-  if (!attemptId) {
-    if (!access?.canAccess) {
+    if (accessError) {
+      console.error("Failed to resolve mock access on start page", accessError);
       redirect("/mock-tests");
     }
 
-    redirect(`/mock-tests/${testId}`);
+    if (!access?.canAccess) {
+      redirect("/mock-tests");
+    }
   }
-
-  const resolvedAttemptId = attemptId;
 
   const [testRes, questionsRes] = await Promise.all([
     adminSupabase
@@ -118,10 +117,28 @@ export default async function StartTestPage({
     redirect("/mock-tests");
   }
 
+  if (!attemptId) {
+    const { data: attempt, error: attemptError } = await adminSupabase
+      .from("test_attempts")
+      .insert({
+        user_id: user.id,
+        test_id: testId,
+      })
+      .select("id")
+      .single();
+
+    if (attemptError || !attempt?.id) {
+      console.error("Failed to create test attempt on start page", attemptError);
+      redirect("/mock-tests");
+    }
+
+    redirect(`/mock-tests/${testId}/start?attemptId=${attempt.id}`);
+  }
+
   return (
     <TestEngine
       questions={questions}
-      attemptId={resolvedAttemptId}
+      attemptId={attemptId}
       durationMinutes={test.duration_minutes}
     />
   );
