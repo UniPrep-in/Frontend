@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import SubmitModal from "./components/SummaryPanel";
 import Loader from "@/app/components/ui/loader";
@@ -41,6 +41,7 @@ export default function TestEngine({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [isAutoSubmitFlow, setIsAutoSubmitFlow] = useState(false);
   const [questionTime, setQuestionTime] = useState<Record<string, number>>(() => {
     if (typeof window === "undefined") return {};
     try {
@@ -51,8 +52,33 @@ export default function TestEngine({
     }
   });
   const [startTime, setStartTime] = useState<number>(() => Date.now());
+  const answersRef = useRef(answers);
+  const questionTimeRef = useRef(questionTime);
+  const currentIndexRef = useRef(currentIndex);
+  const startTimeRef = useRef(startTime);
+  const submittingRef = useRef(submitting);
 
   const currentQuestion = questions[currentIndex];
+
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
+
+  useEffect(() => {
+    questionTimeRef.current = questionTime;
+  }, [questionTime]);
+
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+
+  useEffect(() => {
+    startTimeRef.current = startTime;
+  }, [startTime]);
+
+  useEffect(() => {
+    submittingRef.current = submitting;
+  }, [submitting]);
 
   useEffect(() => {
     hideLoader();
@@ -67,25 +93,32 @@ export default function TestEngine({
   }, [currentIndex, questions]);
 
   async function handleSubmit() {
-    if (submitting) return;
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(true);
     setSubmitError(null);
 
     try {
-      const finalQuestion = questions[currentIndex];
+      const finalQuestion = questions[currentIndexRef.current];
       const now = Date.now();
-      const timeSpent = Math.floor((now - startTime) / 1000);
+      const timeSpent = Math.floor((now - startTimeRef.current) / 1000);
+      const currentAnswers = answersRef.current;
+      const currentQuestionTime = questionTimeRef.current;
 
       const finalTime = {
-        ...questionTime,
-        [finalQuestion.id]: (questionTime[finalQuestion.id] || 0) + timeSpent,
+        ...currentQuestionTime,
+        [finalQuestion.id]: (currentQuestionTime[finalQuestion.id] || 0) + timeSpent,
       };
 
       const res = await fetch("/api/submit-test", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ attemptId, answers, analytics: finalTime }),
+        body: JSON.stringify({
+          attemptId,
+          answers: currentAnswers,
+          analytics: finalTime,
+        }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -99,6 +132,8 @@ export default function TestEngine({
           return;
         }
 
+        setIsAutoSubmitFlow(false);
+        submittingRef.current = false;
         setSubmitting(false);
         return;
       }
@@ -107,7 +142,9 @@ export default function TestEngine({
     } catch (error) {
       console.error("Submit failed:", error);
       setSubmitError("Something went wrong while submitting. Please try again.");
+      submittingRef.current = false;
       setSubmitting(false);
+      setIsAutoSubmitFlow(false);
     }
   }
 
@@ -116,7 +153,8 @@ export default function TestEngine({
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
-          handleSubmit();
+          setShowSubmitModal(true);
+          setIsAutoSubmitFlow(true);
           return 0;
         }
 
@@ -126,6 +164,14 @@ export default function TestEngine({
 
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (!showSubmitModal || !isAutoSubmitFlow || submittingRef.current) {
+      return;
+    }
+
+    void handleSubmit();
+  }, [isAutoSubmitFlow, showSubmitModal]);
 
   function formatTime(seconds: number) {
     const hrs = Math.floor(seconds / 3600);
@@ -242,7 +288,7 @@ export default function TestEngine({
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 md:flex-row">
-      {submitting && (
+      {submitting && !isAutoSubmitFlow && (
         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/80 px-4 backdrop-blur-[2px]">
           <Loader
             title="Submitting your test"
@@ -365,12 +411,13 @@ export default function TestEngine({
       <SubmitModal
         open={showSubmitModal}
         onClose={() => {
-          if (!submitting) {
+          if (!submitting && !isAutoSubmitFlow) {
             setShowSubmitModal(false);
           }
         }}
         onSubmit={handleSubmit}
         submitting={submitting}
+        autoSubmitting={isAutoSubmitFlow}
         total={questions.length}
         answered={Object.keys(answers).length}
         notAnswered={questions.length - Object.keys(answers).length}

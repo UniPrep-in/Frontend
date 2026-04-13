@@ -3,6 +3,7 @@ interface Props {
   onClose: () => void;
   onSubmit: () => void;
   submitting: boolean;
+  autoSubmitting?: boolean;
   total: number;
   answered: number;
   notAnswered: number;
@@ -15,6 +16,7 @@ export default function SubmitModal({
   onClose,
   onSubmit,
   submitting,
+  autoSubmitting = false,
   total,
   answered,
   notAnswered,
@@ -70,10 +72,10 @@ export default function SubmitModal({
     <div className="flex justify-between gap-3 pt-2">
       <button
         onClick={onClose}
-        disabled={submitting}
+        disabled={submitting || autoSubmitting}
         className="w-full px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:cursor-not-allowed disabled:bg-amber-300 text-white font-medium rounded-lg transition-colors"
       >
-        Continue Test
+        {autoSubmitting ? "Time is up" : "Continue Test"}
       </button>
 
       <button
